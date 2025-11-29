@@ -1,0 +1,11 @@
+[project]
+name = "chicago-value-per-acre"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "geopandas>=1.1.1",
+    "pandas>=2.3.3",
+    "numpy>=2.3.5",
+    "shapely>=2.1.2",
+    "pyogrio>=0.12.1",
+]
