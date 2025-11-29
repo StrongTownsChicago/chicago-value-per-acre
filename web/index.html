@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chicago Value Per Acre Map</title>
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <link
+      href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/pmtiles@4.3.0/dist/pmtiles.js"></script>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="info-panel">
+      <h1>Chicago Value Per Acre</h1>
+      <p>
+        Dense, walkable neighborhoods generate more tax value per acre than
+        sprawling developments.
+      </p>
+
+      <button id="toggle-3d">Enable 3D View</button>
+
+      <div id="legend">
+        <h3>Value Per Acre</h3>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #006400"></span>
+          <span>$50M+</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #90ee90"></span>
+          <span>$10M-$50M</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #ffff00"></span>
+          <span>$5M-$10M</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #ffa500"></span>
+          <span>$2M-$5M</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #ff6347"></span>
+          <span>$1M-$2M</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #dc143c"></span>
+          <span>$500k-$1M</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #8b0000"></span>
+          <span>&lt;$500k</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #999999"></span>
+          <span>$0 (Parks/Gov't)</span>
+        </div>
+      </div>
+
+      <div id="parcel-info" class="hidden">
+        <h3>Parcel Details</h3>
+        <div id="parcel-details"></div>
+      </div>
+
+      <div id="methodology">
+        <h3>Methodology</h3>
+        <p style="font-size: 12px; color: #888">
+          Market values estimated from Cook County assessed values using
+          class-specific multipliers (10% residential, 25% commercial per Cook
+          County ordinance). Shows assessed tax values; may not reflect actual
+          market values.
+        </p>
+      </div>
+    </div>
+
+    <div id="map"></div>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>
