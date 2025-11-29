@@ -149,6 +149,15 @@ p {
   }
 }
 
+#github-repo-section {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
 /* Popup/Modal for parcel details */
 .maplibregl-popup {
   max-width: 300px;
