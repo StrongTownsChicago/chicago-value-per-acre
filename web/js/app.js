@@ -143,13 +143,13 @@ map.on("load", () => {
     }
   });
 
+  // Open parcel detail popup on click
   map.on("click", (e) => {
     const layerId = is3D ? "parcels-3d" : "parcels-fill";
     const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
 
     if (features.length > 0) {
       const p = features[0].properties;
-
       const fmt = (val) =>
         val
           ? "$" +
@@ -158,15 +158,8 @@ map.on("load", () => {
       const fmtAcres = (val) =>
         val ? Number(val).toFixed(3) + " acres" : "N/A";
 
-      let propType = "Unknown";
-      if (p.class) {
-        const majorClass = String(p.class)[0];
-        if (["1", "2", "3"].includes(majorClass)) propType = "Residential";
-        else if (majorClass === "4") propType = "Not-for-Profit";
-        else if (majorClass === "5") propType = "Commercial/Industrial";
-      }
-
-      document.getElementById("parcel-details").innerHTML = `
+      const html = `
+      <div class="popup-details">
         <div><strong>Value/Acre:</strong> ${fmt(p.value_per_acre)}</div>
         <div><strong>Total Value:</strong> ${fmt(p.market_value)}</div>
         <div><strong>Area:</strong> ${fmtAcres(p.acres)}</div>
@@ -175,9 +168,11 @@ map.on("load", () => {
         <div><strong>PIN:</strong> ${p.pin_10 || "N/A"}</div>
         <div><a href="https://www.cookcountyassessor.com/pin/${
           p.pin_10
-        }0000" target="_blank">View on Cook County Assessor →</a></div>
-      `;
-      document.getElementById("parcel-info").classList.remove("hidden");
+        }0000" target="_blank">Source →</a></div>
+      </div>
+    `;
+
+      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
     }
   });
 
