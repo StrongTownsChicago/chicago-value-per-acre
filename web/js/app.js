@@ -18,15 +18,28 @@ const map = new maplibregl.Map({
   zoom: 11,
 });
 
+let tilesLoaded = false;
+const spinner = document.getElementById("loading-spinner");
+
 map.addControl(new maplibregl.NavigationControl(), "top-right");
 
 let is3D = false;
 
 map.on("load", () => {
-  // Add local PMTiles source
+  // Hide spinner once map loads - tiles will stream in progressively
+  spinner.style.display = "none";
+
+  // To load tiles locally, generate them with the scripts in the repo and serve via local server
+  // map.addSource("parcels", {
+  //   type: "vector",
+  //   url: "pmtiles://tiles/chicago_parcels.pmtiles",
+  //   promoteId: "pin_10",
+  // });
+
+  // Add remote PMTiles source
   map.addSource("parcels", {
     type: "vector",
-    url: "pmtiles://tiles/chicago_parcels.pmtiles",
+    url: "pmtiles://https://tiles.open-advocacy.com/chicago_parcels.pmtiles",
     promoteId: "pin_10",
   });
 
