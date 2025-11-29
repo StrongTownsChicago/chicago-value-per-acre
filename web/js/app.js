@@ -10,6 +10,59 @@ panelToggle.addEventListener("click", () => {
   panel.classList.toggle("collapsed");
 });
 
+let tilesLoaded = false;
+const spinner = document.getElementById("loading-spinner");
+
+const TILES = {
+  chicago: "pmtiles://https://tiles.open-advocacy.com/chicago_parcels.pmtiles",
+  county:
+    "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles",
+};
+
+let currentExtent = "chicago";
+let is3D = false;
+
+const colorExpression = [
+  "case",
+  ["!", ["has", "value_per_acre"]],
+  "#cccccc",
+  ["<=", ["get", "value_per_acre"], 1],
+  "#999999",
+  ["<", ["get", "value_per_acre"], 500000],
+  "#8B0000",
+  ["<", ["get", "value_per_acre"], 1000000],
+  "#DC143C",
+  ["<", ["get", "value_per_acre"], 2000000],
+  "#FF6347",
+  ["<", ["get", "value_per_acre"], 5000000],
+  "#FFA500",
+  ["<", ["get", "value_per_acre"], 10000000],
+  "#FFFF00",
+  ["<", ["get", "value_per_acre"], 50000000],
+  "#90EE90",
+  "#006400",
+];
+
+const heightExpression = [
+  "interpolate",
+  ["linear"],
+  ["get", "value_per_acre"],
+  0,
+  0,
+  1000000,
+  20,
+  5000000,
+  100,
+  10000000,
+  200,
+  50000000,
+  500,
+  100000000,
+  800,
+  1000000000,
+  1500,
+];
+
 // Create map
 const map = new maplibregl.Map({
   container: "map",
@@ -17,13 +70,7 @@ const map = new maplibregl.Map({
   center: [-87.6298, 41.8781],
   zoom: 11,
 });
-
-let tilesLoaded = false;
-const spinner = document.getElementById("loading-spinner");
-
 map.addControl(new maplibregl.NavigationControl(), "top-right");
-
-let is3D = false;
 
 map.on("load", () => {
   // Hide spinner once map loads - tiles will stream in progressively
@@ -32,58 +79,16 @@ map.on("load", () => {
   // To load tiles locally, generate them with the scripts in the repo and serve via local server
   // map.addSource("parcels", {
   //   type: "vector",
-  //   url: "pmtiles://tiles/chicago_parcels.pmtiles",
+  //   url: "pmtiles://tiles/cook_county_parcels.pmtiles",
   //   promoteId: "pin_10",
   // });
 
   // Add remote PMTiles source
   map.addSource("parcels", {
     type: "vector",
-    url: "pmtiles://https://tiles.open-advocacy.com/chicago_parcels.pmtiles",
+    url: TILES.chicago,
     promoteId: "pin_10",
   });
-
-  // Color expression based on value per acre
-  const colorExpression = [
-    "case",
-    ["!", ["has", "value_per_acre"]],
-    "#cccccc",
-    ["<=", ["get", "value_per_acre"], 1],
-    "#999999",
-    ["<", ["get", "value_per_acre"], 500000],
-    "#8B0000",
-    ["<", ["get", "value_per_acre"], 1000000],
-    "#DC143C",
-    ["<", ["get", "value_per_acre"], 2000000],
-    "#FF6347",
-    ["<", ["get", "value_per_acre"], 5000000],
-    "#FFA500",
-    ["<", ["get", "value_per_acre"], 10000000],
-    "#FFFF00",
-    ["<", ["get", "value_per_acre"], 50000000],
-    "#90EE90",
-    "#006400",
-  ];
-
-  const heightExpression = [
-    "interpolate",
-    ["linear"],
-    ["get", "value_per_acre"],
-    0,
-    0,
-    1000000,
-    20,
-    5000000,
-    100,
-    10000000,
-    200,
-    50000000,
-    500,
-    100000000,
-    800,
-    1000000000,
-    1500,
-  ];
 
   // Start with 2D layer
   map.addLayer({
@@ -203,6 +208,74 @@ map.on("load", () => {
     const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
     map.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
   });
+});
+
+document.getElementById("toggle-extent").addEventListener("click", () => {
+  currentExtent = currentExtent === "chicago" ? "county" : "chicago";
+
+  // Remove old source and layers
+  if (is3D) map.removeLayer("parcels-3d");
+  else map.removeLayer("parcels-fill");
+  map.removeLayer("parcels-outline");
+  map.removeSource("parcels");
+
+  // Add new source
+  map.addSource("parcels", {
+    type: "vector",
+    url: TILES[currentExtent],
+    promoteId: "pin_10",
+  });
+
+  // Re-add layers
+  if (is3D) {
+    map.addLayer({
+      id: "parcels-3d",
+      type: "fill-extrusion",
+      source: "parcels",
+      "source-layer": "parcels",
+      paint: {
+        "fill-extrusion-color": colorExpression,
+        "fill-extrusion-height": heightExpression,
+        "fill-extrusion-opacity": 0.8,
+      },
+    });
+  } else {
+    map.addLayer({
+      id: "parcels-fill",
+      type: "fill",
+      source: "parcels",
+      "source-layer": "parcels",
+      paint: {
+        "fill-color": colorExpression,
+        "fill-opacity": 0.7,
+      },
+    });
+  }
+
+  map.addLayer({
+    id: "parcels-outline",
+    type: "line",
+    source: "parcels",
+    "source-layer": "parcels",
+    paint: {
+      "line-color": "#333",
+      "line-width": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        12,
+        0,
+        14,
+        0.5,
+        16,
+        1,
+      ],
+      "line-opacity": 0.3,
+    },
+  });
+
+  document.getElementById("toggle-extent").textContent =
+    currentExtent === "chicago" ? "Show All Cook County" : "Show Chicago Only";
 });
 
 // CTA Lines with colors
