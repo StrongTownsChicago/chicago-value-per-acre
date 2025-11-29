@@ -31,6 +31,23 @@ body {
   z-index: 1;
 }
 
+#toggle-cta {
+  width: 100%;
+  margin: 10px 0;
+  padding: 10px 16px;
+  background: #00a1de;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#toggle-cta:hover {
+  background: #0081b4;
+}
+
 h1 {
   font-size: 24px;
   margin-bottom: 10px;

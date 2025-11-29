@@ -15,12 +15,10 @@
   <body>
     <div id="info-panel">
       <h1>Chicago Value Per Acre</h1>
-      <p>
-        Dense, walkable neighborhoods generate more tax value per acre than
-        sprawling developments.
-      </p>
+      <p>Dense, walkable neighborhoods generate more tax value per acre.</p>
 
       <button id="toggle-3d">Enable 3D View</button>
+      <button id="toggle-cta">Hide CTA Lines</button>
 
       <div id="legend">
         <h3>Value Per Acre</h3>
@@ -54,7 +52,7 @@
         </div>
         <div class="legend-item">
           <span class="legend-color" style="background: #999999"></span>
-          <span>$0 (Parks/Gov't)</span>
+          <span>$0</span>
         </div>
       </div>
 
@@ -65,11 +63,25 @@
 
       <div id="methodology">
         <h3>Methodology</h3>
-        <p style="font-size: 12px; color: #888">
-          Market values estimated from Cook County assessed values using
-          class-specific multipliers (10% residential, 25% commercial per Cook
-          County ordinance). Shows assessed tax values; may not reflect actual
-          market values.
+        <p style="font-size: 12px; color: #888; line-height: 1.5">
+          Market values derived from
+          <a
+            href="https://datacatalog.cookcountyil.gov/Property-Taxation/Assessor-Assessed-Values/uzyt-m557"
+            target="_blank"
+            >Cook County 2024 assessed values</a
+          >
+          using class-specific assessment levels (10% residential, 20%
+          nonprofit, 25% commercial). Parcel boundaries from
+          <a
+            href="https://hub-cookcountyil.opendata.arcgis.com/datasets/5c2e70b7f31349dc83924a98df8fdbbb_2024"
+            target="_blank"
+            >Cook County GIS</a
+          >. CTA lines from
+          <a
+            href="https://data.cityofchicago.org/Transportation/CTA-L-Rail-Lines/xbyr-jnvx"
+            target="_blank"
+            >Chicago Data Portal</a
+          >. Values represent assessed tax value per acre of land area.
         </p>
       </div>
     </div>
