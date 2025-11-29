@@ -2,6 +2,14 @@
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
+// Mobile panel toggle
+const panel = document.getElementById("info-panel");
+const panelToggle = document.getElementById("panel-toggle");
+
+panelToggle.addEventListener("click", () => {
+  panel.classList.toggle("collapsed");
+});
+
 // Create map
 const map = new maplibregl.Map({
   container: "map",
