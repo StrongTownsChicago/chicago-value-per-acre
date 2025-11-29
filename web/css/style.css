@@ -46,6 +46,7 @@ p {
 
 /* Button styles */
 #toggle-3d,
+#toggle-extent,
 #toggle-cta {
   width: 100%;
   margin: 5px 0;
@@ -57,6 +58,14 @@ p {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
+}
+
+#toggle-extent {
+  background: #e6a774;
+}
+
+#toggle-extent:hover {
+  background: #cf6d1d;
 }
 
 #toggle-3d {
