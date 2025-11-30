@@ -183,7 +183,6 @@ map.on("load", () => {
           : "N/A";
       const fmtAcres = (val) =>
         val ? Number(val).toFixed(3) + " acres" : "N/A";
-      console.log(p);
       const html = `
       <div class="popup-details">
         ${
