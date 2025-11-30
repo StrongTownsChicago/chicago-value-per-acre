@@ -8,8 +8,13 @@ parcels = gpd.read_file('data/processed/chicago_parcels_raw.geojson')
 
 print("Loading assessor data...")
 assessor = pd.read_csv('data/processed/assessor_2024_clean.csv')
+
+print("Loading addresses...")
+addresses = pd.read_csv('data/processed/addresses_clean.csv')
+
 # normalize PIN columns to string
 assessor['pin_10'] = assessor['pin_10'].astype(str)
+addresses['pin_10'] = addresses['pin_10'].astype(str)
 
 # Standardize parcel PINs to 10 digits
 def clean_pin_10digit(pin):
@@ -29,6 +34,7 @@ parcels['pin_10'] = parcels[pin_col].apply(clean_pin_10digit)
 # Join
 print("\nJoining datasets...")
 joined = parcels.merge(assessor, on='pin_10', how='left')
+joined = joined.merge(addresses, on='pin_10', how='left')
 
 matched = joined['final_value'].notnull().sum()
 print(f"Match rate: {matched/len(joined)*100:.1f}% ({matched:,}/{len(joined):,})")
@@ -85,7 +91,7 @@ print("\nValue per acre statistics:")
 print(joined['value_per_acre'].describe())
 
 # Keep essential fields for web map
-keep_cols = ['pin_10', 'value_per_acre', 'market_value', 'acres', 'class', 'geometry']
+keep_cols = ['pin_10', 'pin_14', 'value_per_acre', 'market_value', 'acres', 'class', 'full_address', 'geometry']
 joined = joined[keep_cols]
 
 # Reproject to WGS84 for web mapping

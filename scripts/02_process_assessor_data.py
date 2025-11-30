@@ -34,18 +34,21 @@ def clean_pin_10digit(pin):
 assessor['pin_10'] = assessor['pin'].apply(clean_pin_10digit)
 assessor = assessor[assessor['pin_10'].notnull()]
 
+# Add cleaned 14-digit PIN as condos use full 14-digit PINs
+assessor['pin_14'] = assessor['pin'].apply(lambda x: str(x).replace('-', '').replace(' ', '').strip()[:14].zfill(14) if pd.notna(x) else None)
+
 # Convert class to string before grouping 
 assessor['class'] = assessor['class'].astype(str)
 
 # Group by 10-digit PIN and sum values (aggregates condo units)
 assessor = assessor.groupby('pin_10', as_index=False).agg({
     'final_value': 'sum',  # Sum all units in building
-    'class': 'first'       # Keep first class code
+    'class': 'first',       # Keep first class code
+    'pin_14': 'first'  # Keep first PIN14 for the building
 })
 
 # Keep essential columns
-assessor = assessor[['pin_10', 'final_value', 'class']]
-
+assessor = assessor[['pin_10', 'final_value', 'class', 'pin_14']]
 # Save
 assessor.to_csv('data/processed/assessor_2024_clean.csv', index=False)
 print(f"\nSaved {len(assessor):,} records to data/processed/assessor_2024_clean.csv")
