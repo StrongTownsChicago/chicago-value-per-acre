@@ -1,5 +1,6 @@
 import geopandas as gpd
 
+# TODO: Clean this up and generalize it later
 print("Loading Cook County parcels...")
 parcels = gpd.read_file('data/raw/parcels/Parcels_-_Historical_-_2024.shp')
 print(f"Total Cook County parcels: {len(parcels):,}")

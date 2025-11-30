@@ -183,9 +183,13 @@ map.on("load", () => {
           : "N/A";
       const fmtAcres = (val) =>
         val ? Number(val).toFixed(3) + " acres" : "N/A";
-
       const html = `
       <div class="popup-details">
+        ${
+          p.full_address
+            ? `<div><strong>Address:</strong> ${p.full_address}</div>`
+            : ""
+        }
         <div><strong>Value/Acre:</strong> ${fmt(p.value_per_acre)}</div>
         <div><strong>Total Value:</strong> ${fmt(p.market_value)}</div>
         <div><strong>Area:</strong> ${fmtAcres(p.acres)}</div>
@@ -193,8 +197,8 @@ map.on("load", () => {
         <div><strong>Class:</strong> ${p.class || "N/A"}</div>
         <div><strong>PIN:</strong> ${p.pin_10 || "N/A"}</div>
         <div><a href="https://www.cookcountyassessor.com/pin/${
-          p.pin_10
-        }0000" target="_blank">Source →</a></div>
+          p.pin_14 || p.pin_10 + "0000"
+        }" target="_blank">Source →</a></div>
       </div>
     `;
 
