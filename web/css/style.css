@@ -194,7 +194,7 @@ p {
   color: #333;
 }
 
-/* Panel toggle button (X to close) - now visible on all screens */
+/* Panel toggle button (X to close) */
 .panel-toggle {
   position: absolute;
   top: 8px;
