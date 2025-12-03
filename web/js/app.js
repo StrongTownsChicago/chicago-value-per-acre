@@ -2,12 +2,21 @@
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol("pmtiles", protocol.tile);
 
-// Mobile panel toggle
+// Info panel toggle
 const panel = document.getElementById("info-panel");
 const panelToggle = document.getElementById("panel-toggle");
+const showPanelBtn = document.getElementById("show-panel-btn");
 
+// Close panel
 panelToggle.addEventListener("click", () => {
-  panel.classList.toggle("collapsed");
+  panel.classList.add("collapsed");
+  showPanelBtn.classList.add("visible");
+});
+
+// Restore panel
+showPanelBtn.addEventListener("click", () => {
+  panel.classList.remove("collapsed");
+  showPanelBtn.classList.remove("visible");
 });
 
 let tilesLoaded = false;
@@ -70,7 +79,7 @@ const map = new maplibregl.Map({
   center: [-87.6298, 41.8781],
   zoom: 11,
 });
-map.addControl(new maplibregl.NavigationControl(), "top-right");
+map.addControl(new maplibregl.NavigationControl(), "bottom-right");
 
 map.on("load", () => {
   // Hide spinner once map loads - tiles will stream in progressively
