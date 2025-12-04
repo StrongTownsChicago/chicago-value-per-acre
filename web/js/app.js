@@ -22,14 +22,121 @@ showPanelBtn.addEventListener("click", () => {
 let tilesLoaded = false;
 const spinner = document.getElementById("loading-spinner");
 
+let currentExtent = "chicago";
+let isHighQuality = false;
+let is3D = false;
+
 const TILES = {
   chicago: "pmtiles://https://tiles.open-advocacy.com/chicago_parcels.pmtiles",
+  chicagoHQ:
+    "pmtiles://https://tiles.open-advocacy.com/chicago_parcels_hq.pmtiles",
   county:
     "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles",
+  countyHQ:
+    "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles", // Same as standard for now
 };
 
-let currentExtent = "chicago";
-let is3D = false;
+function getCurrentTileUrl() {
+  const base = currentExtent === "chicago" ? "chicago" : "county";
+  // Force standard quality for county
+  if (currentExtent === "county") {
+    return TILES.county;
+  }
+  return TILES[isHighQuality ? base + "HQ" : base];
+}
+
+function updateQualityButtonState() {
+  const btn = document.getElementById("toggle-quality");
+  const note = document.getElementById("quality-note");
+
+  if (currentExtent === "county") {
+    // Disable for Cook County
+    btn.disabled = true;
+    btn.textContent = "High Quality (Chicago Only)";
+    note.textContent =
+      "High quality mode is only available for Chicago due to file size.";
+    btn.style.opacity = "0.5";
+    btn.style.cursor = "not-allowed";
+  } else {
+    // Enable for Chicago
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    btn.style.cursor = "pointer";
+
+    if (isHighQuality) {
+      btn.textContent = "Standard Quality (Faster)";
+      note.textContent =
+        "Showing all parcels at all zoom levels. This may not work on some devices.";
+    } else {
+      btn.textContent = "Show All Parcels (Slower)";
+      note.textContent =
+        "Standard quality hides some parcels at low zoom levels for better performance.";
+    }
+  }
+}
+
+function reloadParcelsSource() {
+  // Remove old layers
+  if (is3D && map.getLayer("parcels-3d")) map.removeLayer("parcels-3d");
+  if (!is3D && map.getLayer("parcels-fill")) map.removeLayer("parcels-fill");
+  if (map.getLayer("parcels-outline")) map.removeLayer("parcels-outline");
+  if (map.getSource("parcels")) map.removeSource("parcels");
+
+  // Add new source
+  map.addSource("parcels", {
+    type: "vector",
+    url: getCurrentTileUrl(),
+    promoteId: "pin_10",
+  });
+
+  // Re-add layers based on current mode
+  if (is3D) {
+    map.addLayer({
+      id: "parcels-3d",
+      type: "fill-extrusion",
+      source: "parcels",
+      "source-layer": "parcels",
+      paint: {
+        "fill-extrusion-color": colorExpression,
+        "fill-extrusion-height": heightExpression,
+        "fill-extrusion-opacity": 0.8,
+      },
+    });
+  } else {
+    map.addLayer({
+      id: "parcels-fill",
+      type: "fill",
+      source: "parcels",
+      "source-layer": "parcels",
+      paint: {
+        "fill-color": colorExpression,
+        "fill-opacity": 0.7,
+      },
+    });
+  }
+
+  map.addLayer({
+    id: "parcels-outline",
+    type: "line",
+    source: "parcels",
+    "source-layer": "parcels",
+    paint: {
+      "line-color": "#333",
+      "line-width": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        12,
+        0,
+        14,
+        0.5,
+        16,
+        1,
+      ],
+      "line-opacity": 0.3,
+    },
+  });
+}
 
 const colorExpression = [
   "case",
@@ -103,7 +210,7 @@ map.on("load", () => {
   // Add remote PMTiles source
   map.addSource("parcels", {
     type: "vector",
-    url: TILES.chicago,
+    url: getCurrentTileUrl(),
     promoteId: "pin_10",
   });
 
@@ -141,6 +248,9 @@ map.on("load", () => {
       "line-opacity": 0.3,
     },
   });
+
+  // Initialize button state
+  updateQualityButtonState();
 
   // Toggle 3D
   document.getElementById("toggle-3d").addEventListener("click", () => {
@@ -231,72 +341,32 @@ map.on("load", () => {
   });
 });
 
+// Toggle extent (Chicago vs Cook County)
 document.getElementById("toggle-extent").addEventListener("click", () => {
   currentExtent = currentExtent === "chicago" ? "county" : "chicago";
 
-  // Remove old source and layers
-  if (is3D) map.removeLayer("parcels-3d");
-  else map.removeLayer("parcels-fill");
-  map.removeLayer("parcels-outline");
-  map.removeSource("parcels");
-
-  // Add new source
-  map.addSource("parcels", {
-    type: "vector",
-    url: TILES[currentExtent],
-    promoteId: "pin_10",
-  });
-
-  // Re-add layers
-  if (is3D) {
-    map.addLayer({
-      id: "parcels-3d",
-      type: "fill-extrusion",
-      source: "parcels",
-      "source-layer": "parcels",
-      paint: {
-        "fill-extrusion-color": colorExpression,
-        "fill-extrusion-height": heightExpression,
-        "fill-extrusion-opacity": 0.8,
-      },
-    });
-  } else {
-    map.addLayer({
-      id: "parcels-fill",
-      type: "fill",
-      source: "parcels",
-      "source-layer": "parcels",
-      paint: {
-        "fill-color": colorExpression,
-        "fill-opacity": 0.7,
-      },
-    });
+  // Force back to standard quality when switching to county
+  if (currentExtent === "county" && isHighQuality) {
+    isHighQuality = false;
   }
 
-  map.addLayer({
-    id: "parcels-outline",
-    type: "line",
-    source: "parcels",
-    "source-layer": "parcels",
-    paint: {
-      "line-color": "#333",
-      "line-width": [
-        "interpolate",
-        ["linear"],
-        ["zoom"],
-        12,
-        0,
-        14,
-        0.5,
-        16,
-        1,
-      ],
-      "line-opacity": 0.3,
-    },
-  });
+  reloadParcelsSource();
+  updateQualityButtonState();
 
   document.getElementById("toggle-extent").textContent =
     currentExtent === "chicago" ? "Show All Cook County" : "Show Chicago Only";
+});
+
+// Toggle quality (Standard vs High Quality)
+document.getElementById("toggle-quality").addEventListener("click", () => {
+  // Only allow toggle for Chicago
+  if (currentExtent === "county") {
+    return;
+  }
+
+  isHighQuality = !isHighQuality;
+  reloadParcelsSource();
+  updateQualityButtonState();
 });
 
 // CTA Lines with colors
