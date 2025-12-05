@@ -44,11 +44,11 @@ pip install geopandas pandas numpy shapely pyogrio
 # Download data (see Data Sources above to their respective subdirectories)
 # Place in parcels => data/raw/parcels/, assessed values => data/raw/assessor/, boundaries => data/raw/boundaries/, addresses => data/raw/addresses
 
-# Process data
+# Process data (for Chicago)
 python scripts/01_process_parcel_data.py chicago
 python scripts/02_process_assessor_data.py
 python scripts/03_process_address_data.py
-python scripts/03_join_and_calculate.py
+python scripts/04_join_parcel_data.py chicago
 
 # Generate tiles (must be run on Linux or WSL as it depends on tippecanoe)
 ./scripts/04_generate_tiles.sh chicago standard
