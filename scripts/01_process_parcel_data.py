@@ -36,9 +36,10 @@ def process_parcels(region):
     print("Fixing invalid geometries...")
     parcels['geometry'] = parcels.geometry.make_valid()
     
-    # If Chicago, do spatial filter
+    # If Chicago, do spatial filter to remove non-Chicago parcels
     if region == 'chicago':
         print("\nLoading Chicago boundary...")
+        # https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-City/ewy2-6yfk
         chicago = gpd.read_file('data/raw/boundaries')
         
         # Ensure same CRS

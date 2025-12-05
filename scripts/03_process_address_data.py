@@ -1,6 +1,7 @@
 import pandas as pd
 
 print("Loading address data...")
+# https://datacatalog.cookcountyil.gov/Property-Taxation/Assessor-Parcel-Addresses/3723-97qp
 addresses = pd.read_csv('data/raw/addresses/Assessor_-_Parcel_Addresses_20251130.csv', dtype={
         'property_zip': 'string',
 })

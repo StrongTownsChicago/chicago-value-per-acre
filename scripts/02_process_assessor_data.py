@@ -3,6 +3,7 @@ import pandas as pd
 print("Loading assessor data (large file, takes 1-2 minutes)...")
 # Load in chunks to handle large file
 chunks = []
+# https://datacatalog.cookcountyil.gov/Property-Taxation/Assessor-Assessed-Values/uzyt-m557) (filter to 2024)
 for chunk in pd.read_csv('data/raw/assessor/Assessor_-_Assessed_Values_2024.csv', chunksize=100000):
     # Filter to 2024 tax year only while loading
     chunk_2024 = chunk[chunk['tax_year'] == 2024]
