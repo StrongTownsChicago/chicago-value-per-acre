@@ -1,6 +1,6 @@
 # Chicago/Cook County Value Per Acre Map
 
-Interactive 3D map visualizing property tax value per acre across Chicago and Cook County. Built with Cook County 2024 assessment data and built by [Strong Towns Chicago](https://strongtownschicago.org).
+Interactive 3D map visualizing property tax value per acre across Chicago and Cook County. Built with Cook County 2024 assessment data by [Strong Towns Chicago](https://strongtownschicago.org).
 
 **[View Live Map →](https://www.strongtownschicago.org/value-per-acre-map)**
 
@@ -18,6 +18,7 @@ Interactive 3D map visualizing property tax value per acre across Chicago and Co
 ### Prerequisites
 
 - Python 3.13+
+- [uv](https://github.com/astral-sh/uv) - Fast Python package manager
 - [Tippecanoe](https://github.com/felt/tippecanoe) (for tile generation)
 - Git
 
@@ -28,12 +29,8 @@ Interactive 3D map visualizing property tax value per acre across Chicago and Co
 git clone https://github.com/StrongTownsChicago/chicago-value-per-acre
 cd chicago-value-per-acre
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
 # Install dependencies
-pip install geopandas pandas numpy shapely pyogrio
+uv sync
 ```
 
 ### Download Data
