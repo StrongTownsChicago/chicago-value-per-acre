@@ -116,6 +116,12 @@ p {
   color: #999;
 }
 
+#metric-note {
+  font-size: 11px;
+  color: #666;
+  margin: -3px 0 8px 0;
+}
+
 #legend {
   margin-top: 20px;
 }

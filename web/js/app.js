@@ -414,6 +414,11 @@ document.getElementById("toggle-metric").addEventListener("click", () => {
   document.getElementById("toggle-metric").textContent =
     displayMetric === "value" ? "Show Tax Data" : "Show Value Data";
 
+  document.getElementById("metric-note").textContent =
+    displayMetric === "value"
+      ? "Currently showing market value data (2024)"
+      : "Currently showing property tax data (2023)";
+
   // Update paint properties
   const layer = is3D ? "parcels-3d" : "parcels-fill";
   if (is3D) {
