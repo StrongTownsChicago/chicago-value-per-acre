@@ -250,9 +250,16 @@ map.on("load", () => {
   spinner.style.display = "none";
 
   // To load tiles locally, generate them with the scripts in the repo and serve via local server
+  // map.addSource("parcels", {
+  //   type: "vector",
+  //   url: "pmtiles://tiles/cook_county_parcels_hq.pmtiles",
+  //   promoteId: "pin_10",
+  // });
+
+  // // Add remote PMTiles source
   map.addSource("parcels", {
     type: "vector",
-    url: "pmtiles://tiles/chicago_parcels_hq.pmtiles",
+    url: getCurrentTileUrl(),
     promoteId: "pin_10",
   });
 
