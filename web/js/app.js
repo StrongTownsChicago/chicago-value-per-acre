@@ -25,6 +25,7 @@ const spinner = document.getElementById("loading-spinner");
 let currentExtent = "chicago";
 let isHighQuality = false;
 let is3D = false;
+let displayMetric = "value";
 
 const TILES = {
   chicago: "pmtiles://https://tiles.open-advocacy.com/chicago_parcels.pmtiles",
@@ -33,7 +34,64 @@ const TILES = {
   county:
     "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles",
   countyHQ:
-    "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles", // Same as standard for now
+    "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles",
+};
+
+const SCALES = {
+  value: {
+    title: "Value Per Acre",
+    field: "value_per_acre",
+    colors: [
+      { threshold: 1, color: "#999999", label: "$0" },
+      { threshold: 500000, color: "#8B0000", label: "<$500k" },
+      { threshold: 1000000, color: "#DC143C", label: "$500k-$1M" },
+      { threshold: 2000000, color: "#FF6347", label: "$1M-$2M" },
+      { threshold: 5000000, color: "#FFA500", label: "$2M-$5M" },
+      { threshold: 10000000, color: "#FFFF00", label: "$5M-$10M" },
+      { threshold: 50000000, color: "#90EE90", label: "$10M-$50M" },
+      { threshold: Infinity, color: "#006400", label: "$50M+" },
+    ],
+    heights: [
+      [0, 0],
+      [1000000, 15],
+      [5000000, 60],
+      [10000000, 120],
+      [25000000, 250],
+      [50000000, 600],
+      [100000000, 1500],
+      [500000000, 4000],
+      [1000000000, 6000],
+      [2000000000, 9000],
+      [5000000000, 14000],
+    ],
+  },
+  tax: {
+    title: "Tax Per Acre (2023)",
+    field: "tax_per_acre",
+    colors: [
+      { threshold: 1, color: "#999999", label: "$0" },
+      { threshold: 10000, color: "#8B0000", label: "<$10k" }, // matches $500k market value
+      { threshold: 20000, color: "#DC143C", label: "$10k-$20k" }, // matches $1M market value
+      { threshold: 40000, color: "#FF6347", label: "$20k-$40k" }, // matches $2M market value
+      { threshold: 100000, color: "#FFA500", label: "$40k-$100k" }, // matches $5M market value
+      { threshold: 200000, color: "#FFFF00", label: "$100k-$200k" }, // matches $10M market value
+      { threshold: 1000000, color: "#90EE90", label: "$200k-$1M" }, // matches $50M market value
+      { threshold: Infinity, color: "#006400", label: "$1M+" },
+    ],
+    heights: [
+      [0, 0],
+      [20000, 15],
+      [100000, 60],
+      [200000, 120],
+      [500000, 250],
+      [1000000, 600],
+      [2000000, 1500],
+      [10000000, 4000],
+      [20000000, 6000],
+      [40000000, 9000],
+      [100000000, 14000],
+    ],
+  },
 };
 
 function getCurrentTileUrl() {
@@ -75,21 +133,36 @@ function updateQualityButtonState() {
   }
 }
 
+function updateLegend() {
+  const scale = SCALES[displayMetric];
+  const legendHTML = [...scale.colors]
+    .reverse()
+    .map(
+      ({ color, label }) =>
+        `<div class="legend-item">
+      <span class="legend-color" style="background: ${color}"></span>
+      <span>${label}</span>
+    </div>`
+    )
+    .join("");
+
+  document.querySelector(
+    "#legend"
+  ).innerHTML = `<h3>${scale.title}</h3>${legendHTML}`;
+}
+
 function reloadParcelsSource() {
-  // Remove old layers
   if (is3D && map.getLayer("parcels-3d")) map.removeLayer("parcels-3d");
   if (!is3D && map.getLayer("parcels-fill")) map.removeLayer("parcels-fill");
   if (map.getLayer("parcels-outline")) map.removeLayer("parcels-outline");
   if (map.getSource("parcels")) map.removeSource("parcels");
 
-  // Add new source
   map.addSource("parcels", {
     type: "vector",
     url: getCurrentTileUrl(),
     promoteId: "pin_10",
   });
 
-  // Re-add layers based on current mode
   if (is3D) {
     map.addLayer({
       id: "parcels-3d",
@@ -97,8 +170,8 @@ function reloadParcelsSource() {
       source: "parcels",
       "source-layer": "parcels",
       paint: {
-        "fill-extrusion-color": colorExpression,
-        "fill-extrusion-height": heightExpression,
+        "fill-extrusion-color": getColorExpression(),
+        "fill-extrusion-height": getHeightExpression(),
         "fill-extrusion-opacity": 0.8,
       },
     });
@@ -109,7 +182,7 @@ function reloadParcelsSource() {
       source: "parcels",
       "source-layer": "parcels",
       paint: {
-        "fill-color": colorExpression,
+        "fill-color": getColorExpression(),
         "fill-opacity": 0.7,
       },
     });
@@ -138,54 +211,30 @@ function reloadParcelsSource() {
   });
 }
 
-const colorExpression = [
-  "case",
-  ["!", ["has", "value_per_acre"]],
-  "#cccccc",
-  ["<=", ["get", "value_per_acre"], 1],
-  "#999999",
-  ["<", ["get", "value_per_acre"], 500000],
-  "#8B0000",
-  ["<", ["get", "value_per_acre"], 1000000],
-  "#DC143C",
-  ["<", ["get", "value_per_acre"], 2000000],
-  "#FF6347",
-  ["<", ["get", "value_per_acre"], 5000000],
-  "#FFA500",
-  ["<", ["get", "value_per_acre"], 10000000],
-  "#FFFF00",
-  ["<", ["get", "value_per_acre"], 50000000],
-  "#90EE90",
-  "#006400",
-];
+function getColorExpression() {
+  const scale = SCALES[displayMetric];
+  const expr = ["case", ["!", ["has", scale.field]], "#cccccc"];
 
-const heightExpression = [
-  "interpolate",
-  ["linear"],
-  ["get", "value_per_acre"],
-  0,
-  0,
-  1000000,
-  15,
-  5000000,
-  60,
-  10000000,
-  120,
-  25000000,
-  250,
-  50000000,
-  600,
-  100000000,
-  1500,
-  500000000,
-  4000,
-  1000000000,
-  6000,
-  2000000000,
-  9000,
-  5000000000,
-  14000,
-];
+  scale.colors.forEach(({ threshold, color }) => {
+    if (threshold === Infinity) {
+      expr.push(color);
+    } else {
+      expr.push(["<", ["get", scale.field], threshold], color);
+    }
+  });
+
+  return expr;
+}
+
+function getHeightExpression() {
+  const scale = SCALES[displayMetric];
+  return [
+    "interpolate",
+    ["linear"],
+    ["get", scale.field],
+    ...scale.heights.flat(),
+  ];
+}
 
 // Create map
 const map = new maplibregl.Map({
@@ -203,11 +252,11 @@ map.on("load", () => {
   // To load tiles locally, generate them with the scripts in the repo and serve via local server
   // map.addSource("parcels", {
   //   type: "vector",
-  //   url: "pmtiles://tiles/cook_county_parcels.pmtiles",
+  //   url: "pmtiles://tiles/cook_county_parcels_hq.pmtiles",
   //   promoteId: "pin_10",
   // });
 
-  // Add remote PMTiles source
+  // // Add remote PMTiles source
   map.addSource("parcels", {
     type: "vector",
     url: getCurrentTileUrl(),
@@ -221,7 +270,7 @@ map.on("load", () => {
     source: "parcels",
     "source-layer": "parcels",
     paint: {
-      "fill-color": colorExpression,
+      "fill-color": getColorExpression(),
       "fill-opacity": 0.7,
     },
   });
@@ -251,6 +300,7 @@ map.on("load", () => {
 
   // Initialize button state
   updateQualityButtonState();
+  updateLegend();
 
   // Toggle 3D
   document.getElementById("toggle-3d").addEventListener("click", () => {
@@ -265,8 +315,8 @@ map.on("load", () => {
           source: "parcels",
           "source-layer": "parcels",
           paint: {
-            "fill-extrusion-color": colorExpression,
-            "fill-extrusion-height": heightExpression,
+            "fill-extrusion-color": getColorExpression(),
+            "fill-extrusion-height": getHeightExpression(),
             "fill-extrusion-opacity": 0.8,
           },
         },
@@ -284,7 +334,7 @@ map.on("load", () => {
           source: "parcels",
           "source-layer": "parcels",
           paint: {
-            "fill-color": colorExpression,
+            "fill-color": getColorExpression(),
             "fill-opacity": 0.7,
           },
         },
@@ -310,6 +360,8 @@ map.on("load", () => {
           : "N/A";
       const fmtAcres = (val) =>
         val ? Number(val).toFixed(3) + " acres" : "N/A";
+      const fmtPct = (val) => (val ? Number(val).toFixed(2) + "%" : "N/A");
+
       const html = `
       <div class="popup-details">
         ${
@@ -318,7 +370,28 @@ map.on("load", () => {
             : ""
         }
         <div><strong>Value/Acre:</strong> ${fmt(p.value_per_acre)}</div>
+        ${
+          p.tax_per_acre
+            ? `<div><strong>Tax/Acre:</strong> ${fmt(
+                p.tax_per_acre
+              )} (2023)</div>`
+            : `<div style="color: #999; font-size: 12px;">Property tax data not available</div>`
+        }
         <div><strong>Total Value:</strong> ${fmt(p.market_value)}</div>
+        ${
+          p.total_tax_2023
+            ? `<div><strong>Total Property Tax:</strong> ${fmt(
+                p.total_tax_2023
+              )} (2023)</div>`
+            : ""
+        }
+        ${
+          p.effective_tax_rate
+            ? `<div><strong>Effective Property Rate:</strong> ${fmtPct(
+                p.effective_tax_rate
+              )}</div>`
+            : ""
+        }
         <div><strong>Area:</strong> ${fmtAcres(p.acres)}</div>
         <div><strong>Type:</strong> ${getClassDescription(p.class)}</div>
         <div><strong>Class:</strong> ${p.class || "N/A"}</div>
@@ -326,9 +399,7 @@ map.on("load", () => {
         <div><a href="https://www.cookcountyassessor.com/pin/${
           p.pin_14 || p.pin_10 + "0000"
         }" target="_blank">Source →</a></div>
-      </div>
-    `;
-
+      </div>`;
       new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
     }
   });
@@ -339,6 +410,30 @@ map.on("load", () => {
     const features = map.queryRenderedFeatures(e.point, { layers: [layerId] });
     map.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
   });
+});
+
+document.getElementById("toggle-metric").addEventListener("click", () => {
+  displayMetric = displayMetric === "value" ? "tax" : "value";
+
+  updateLegend();
+
+  // Update button text
+  document.getElementById("toggle-metric").textContent =
+    displayMetric === "value" ? "Show Tax Data" : "Show Value Data";
+
+  document.getElementById("metric-note").textContent =
+    displayMetric === "value"
+      ? "Currently showing market value data (2024)"
+      : "Currently showing property tax data (2023)";
+
+  // Update paint properties
+  const layer = is3D ? "parcels-3d" : "parcels-fill";
+  if (is3D) {
+    map.setPaintProperty(layer, "fill-extrusion-color", getColorExpression());
+    map.setPaintProperty(layer, "fill-extrusion-height", getHeightExpression());
+  } else {
+    map.setPaintProperty(layer, "fill-color", getColorExpression());
+  }
 });
 
 // Toggle extent (Chicago vs Cook County)

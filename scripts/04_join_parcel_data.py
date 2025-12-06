@@ -90,6 +90,18 @@ def join_parcel_data(region):
     addresses = pd.read_csv('data/processed/addresses_clean.csv')
     print(f"  Loaded {len(addresses):,} address records")
     
+    # Load tax data if available (optional)
+    tax_bills = None
+    tax_path = 'data/processed/tax_bills_2023.csv'
+    if os.path.exists(tax_path):
+        print("Loading 2023 tax bill data...")
+        tax_bills = pd.read_csv(tax_path)
+        tax_bills['pin_10'] = tax_bills['pin_10'].astype(str)
+        print(f"  Loaded {len(tax_bills):,} tax records")
+    else:
+        print(f"Warning: Tax bill data not found at {tax_path}")
+        print("  Skipping tax data. Run scripts/extract_tax_bills.R to generate.")
+    
     # Normalize PIN columns to string
     assessor['pin_10'] = assessor['pin_10'].astype(str)
     addresses['pin_10'] = addresses['pin_10'].astype(str)
@@ -210,12 +222,32 @@ def join_parcel_data(region):
     
     joined['value_per_acre'] = joined['market_value'] / joined['acres']
     
+    # Join tax data if available
+    if tax_bills is not None:
+        print("\nJoining tax bill data...")
+        joined = joined.merge(tax_bills, on='pin_10', how='left')
+        
+        # Calculate tax per acre and effective tax rate
+        joined['tax_per_acre'] = joined['total_tax_2023'] / joined['acres']
+        joined['effective_tax_rate'] = (joined['total_tax_2023'] / joined['market_value']) * 100
+        
+        matched_tax = joined['total_tax_2023'].notnull().sum()
+        tax_match_rate = matched_tax / len(joined) * 100
+        print(f"  Tax match rate: {tax_match_rate:.1f}% ({matched_tax:,}/{len(joined):,})")
+    
     print(f"\nFinal dataset: {len(joined):,} parcels")
     print("\nValue per acre statistics:")
     print(joined['value_per_acre'].describe())
     
     # Keep essential fields for web map
-    keep_cols = ['pin_10', 'pin_14', 'value_per_acre', 'market_value', 'acres', 'class', 'full_address', 'geometry']
+    if tax_bills is not None:
+        keep_cols = ['pin_10', 'pin_14', 'value_per_acre', 'market_value', 
+                     'total_tax_2023', 'tax_per_acre', 'effective_tax_rate',
+                     'acres', 'class', 'full_address', 'geometry']
+    else:
+        keep_cols = ['pin_10', 'pin_14', 'value_per_acre', 'market_value', 
+                     'acres', 'class', 'full_address', 'geometry']
+    
     joined = joined[keep_cols]
     
     # Reproject to WGS84 for web mapping

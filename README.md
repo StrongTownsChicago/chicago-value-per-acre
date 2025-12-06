@@ -8,6 +8,7 @@ Interactive 3D map visualizing property tax value per acre across Chicago and Co
 
 - **Parcel-level visualization** of Cook County/Chicago properties
 - **Toggle between 2D/3D views** with height-scaled extrusions
+- **Toggle between market value and property tax views** (2024 assessments vs 2023 tax bills)
 - **Two geographic extents:** Chicago-only or full Cook County
 - **Quality modes:** Standard (fast) or High Quality (all parcels at all zoom levels)
 - **Click parcels** for details and direct links to Cook County Assessor records
@@ -89,6 +90,35 @@ python scripts/04_join_parcel_data.py cook_county
 ./scripts/05_generate_tiles.sh cook_county standard
 ```
 
+### Extracting Property Tax Data (Optional)
+
+Add 2023 property tax data from [PTAXSIM](https://ccao-data.github.io/ptaxsim/):
+
+**Prerequisites:**
+
+- R installed: `sudo apt install r-base r-base-dev`
+- System deps: `sudo apt install libcurl4-openssl-dev libssl-dev libxml2-dev libsqlite3-dev`
+
+**Setup:**
+
+```bash
+# Download PTAXSIM database (800MB compressed)
+mkdir -p data/raw/tax_data
+wget https://ccao-data-public-us-east-1.s3.amazonaws.com/ptaxsim/ptaxsim-2023.0.0.db.bz2
+bzip2 -d ptaxsim-2023.0.0.db.bz2
+mv ptaxsim-2023.0.0.db data/raw/tax_data/ptaxsim.db
+
+# Install R packages
+R -e "install.packages(c('remotes', 'dplyr', 'jsonlite')); remotes::install_github('ccao-data/ptaxsim')"
+
+# Extract tax bills (15-30 minutes)
+Rscript scripts/extract_tax_bills.R chicago
+# OR
+Rscript scripts/extract_tax_bills.R cook_county
+```
+
+Generates `data/processed/tax_bills_2023.csv` which `04_join_parcel_data.py` joins automatically if present.
+
 ### Local Development
 
 ```bash
@@ -116,6 +146,15 @@ Value Per Acre = Market Value ÷ Parcel Acres
 ```
 
 **Condo Handling:** Multi-unit properties are summed by 10-digit PIN to show total building value.
+
+**Property Tax Calculation:**
+
+```
+Tax Per Acre = Total Property Tax (2023) ÷ Parcel Acres
+Effective Tax Rate = (Total Tax ÷ Market Value) × 100
+```
+
+Tax data sourced from PTAXSIM, which reproduces Cook County tax bills by aggregating rates from 10-14 taxing agencies per parcel.
 
 ## Project Structure
 
@@ -165,6 +204,7 @@ Built for static hosting. Currently it is deployed via Cloudflare.
 - **Assessments:** [Cook County Assessor - Assessed Values 2024](https://datacatalog.cookcountyil.gov/Property-Taxation/Assessor-Assessed-Values/uzyt-m557)
 - **Addresses:** [Cook County Assessor - Parcel Addresses](https://datacatalog.cookcountyil.gov/Property-Taxation/Assessor-Parcel-Addresses/3723-97qp)
 - **Chicago Boundary:** [Chicago Data Portal - City Boundaries](https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-City/ewy2-6yfk)
+- **Property Taxes:** [PTAXSIM Database](https://ccao-data.github.io/ptaxsim/) - 2023 tax bills
 - **CTA Lines:** [Chicago Data Portal - CTA Rail Lines](https://data.cityofchicago.org/Transportation/CTA-L-Rail-Lines/xbyr-jnvx)
 
 ## License
