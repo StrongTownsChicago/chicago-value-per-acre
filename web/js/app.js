@@ -34,7 +34,64 @@ const TILES = {
   county:
     "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles",
   countyHQ:
-    "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles", // Same as standard for now
+    "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles",
+};
+
+const SCALES = {
+  value: {
+    title: "Value Per Acre",
+    field: "value_per_acre",
+    colors: [
+      { threshold: 1, color: "#999999", label: "$0" },
+      { threshold: 500000, color: "#8B0000", label: "<$500k" },
+      { threshold: 1000000, color: "#DC143C", label: "$500k-$1M" },
+      { threshold: 2000000, color: "#FF6347", label: "$1M-$2M" },
+      { threshold: 5000000, color: "#FFA500", label: "$2M-$5M" },
+      { threshold: 10000000, color: "#FFFF00", label: "$5M-$10M" },
+      { threshold: 50000000, color: "#90EE90", label: "$10M-$50M" },
+      { threshold: Infinity, color: "#006400", label: "$50M+" },
+    ],
+    heights: [
+      [0, 0],
+      [1000000, 15],
+      [5000000, 60],
+      [10000000, 120],
+      [25000000, 250],
+      [50000000, 600],
+      [100000000, 1500],
+      [500000000, 4000],
+      [1000000000, 6000],
+      [2000000000, 9000],
+      [5000000000, 14000],
+    ],
+  },
+  tax: {
+    title: "Tax Per Acre (2023)",
+    field: "tax_per_acre",
+    colors: [
+      { threshold: 1, color: "#999999", label: "$0" },
+      { threshold: 20000, color: "#8B0000", label: "<$20k" },
+      { threshold: 40000, color: "#DC143C", label: "$20k-$40k" },
+      { threshold: 80000, color: "#FF6347", label: "$40k-$80k" },
+      { threshold: 200000, color: "#FFA500", label: "$80k-$200k" },
+      { threshold: 400000, color: "#FFFF00", label: "$200k-$400k" },
+      { threshold: 2000000, color: "#90EE90", label: "$400k-$2M" },
+      { threshold: Infinity, color: "#006400", label: "$2M+" },
+    ],
+    heights: [
+      [0, 0],
+      [40000, 15],
+      [200000, 60],
+      [400000, 120],
+      [1000000, 250],
+      [2000000, 600],
+      [4000000, 1500],
+      [20000000, 4000],
+      [40000000, 6000],
+      [80000000, 9000],
+      [200000000, 14000],
+    ],
+  },
 };
 
 function getCurrentTileUrl() {
@@ -74,6 +131,24 @@ function updateQualityButtonState() {
         "Standard quality hides some parcels at low zoom levels for better performance.";
     }
   }
+}
+
+function updateLegend() {
+  const scale = SCALES[displayMetric];
+  const legendHTML = [...scale.colors]
+    .reverse()
+    .map(
+      ({ color, label }) =>
+        `<div class="legend-item">
+      <span class="legend-color" style="background: ${color}"></span>
+      <span>${label}</span>
+    </div>`
+    )
+    .join("");
+
+  document.querySelector(
+    "#legend"
+  ).innerHTML = `<h3>${scale.title}</h3>${legendHTML}`;
 }
 
 function reloadParcelsSource() {
@@ -137,57 +212,27 @@ function reloadParcelsSource() {
 }
 
 function getColorExpression() {
-  const field = displayMetric === "value" ? "value_per_acre" : "tax_per_acre";
-  return [
-    "case",
-    ["!", ["has", field]],
-    "#cccccc",
-    ["<=", ["get", field], 1],
-    "#999999",
-    ["<", ["get", field], 500000],
-    "#8B0000",
-    ["<", ["get", field], 1000000],
-    "#DC143C",
-    ["<", ["get", field], 2000000],
-    "#FF6347",
-    ["<", ["get", field], 5000000],
-    "#FFA500",
-    ["<", ["get", field], 10000000],
-    "#FFFF00",
-    ["<", ["get", field], 50000000],
-    "#90EE90",
-    "#006400",
-  ];
+  const scale = SCALES[displayMetric];
+  const expr = ["case", ["!", ["has", scale.field]], "#cccccc"];
+
+  scale.colors.forEach(({ threshold, color }) => {
+    if (threshold === Infinity) {
+      expr.push(color);
+    } else {
+      expr.push(["<", ["get", scale.field], threshold], color);
+    }
+  });
+
+  return expr;
 }
 
 function getHeightExpression() {
-  const field = displayMetric === "value" ? "value_per_acre" : "tax_per_acre";
+  const scale = SCALES[displayMetric];
   return [
     "interpolate",
     ["linear"],
-    ["get", field],
-    0,
-    0,
-    1000000,
-    15,
-    5000000,
-    60,
-    10000000,
-    120,
-    25000000,
-    250,
-    50000000,
-    600,
-    100000000,
-    1500,
-    500000000,
-    4000,
-    1000000000,
-    6000,
-    2000000000,
-    9000,
-    5000000000,
-    14000,
+    ["get", scale.field],
+    ...scale.heights.flat(),
   ];
 }
 
@@ -210,13 +255,6 @@ map.on("load", () => {
     url: "pmtiles://tiles/chicago_parcels.pmtiles",
     promoteId: "pin_10",
   });
-
-  // // Add remote PMTiles source
-  // map.addSource("parcels", {
-  //   type: "vector",
-  //   url: getCurrentTileUrl(),
-  //   promoteId: "pin_10",
-  // });
 
   // Start with 2D layer
   map.addLayer({
@@ -255,6 +293,7 @@ map.on("load", () => {
 
   // Initialize button state
   updateQualityButtonState();
+  updateLegend();
 
   // Toggle 3D
   document.getElementById("toggle-3d").addEventListener("click", () => {
@@ -353,8 +392,7 @@ map.on("load", () => {
         <div><a href="https://www.cookcountyassessor.com/pin/${
           p.pin_14 || p.pin_10 + "0000"
         }" target="_blank">Source →</a></div>
-      </div>
-    `;
+      </div>`;
 
       new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
     }
@@ -371,9 +409,7 @@ map.on("load", () => {
 document.getElementById("toggle-metric").addEventListener("click", () => {
   displayMetric = displayMetric === "value" ? "tax" : "value";
 
-  // Update legend title
-  document.querySelector("#legend h3").textContent =
-    displayMetric === "value" ? "Value Per Acre" : "Tax Per Acre (2023)";
+  updateLegend();
 
   // Update button text
   document.getElementById("toggle-metric").textContent =
