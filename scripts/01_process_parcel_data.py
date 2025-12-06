@@ -54,20 +54,7 @@ def process_parcels(region):
         # Remove duplicate columns from spatial join
         parcels = parcels[parcels.columns[parcels.columns.isin(gpd.read_file('data/raw/parcels/Parcels_-_Historical_-_2024.shp', rows=1).columns)]]
         
-        print(f"After spatial filter: {len(parcels):,}")
-    
-    # Remove duplicate PINs, keep largest geometry
-    print("\nDeduplicating by PIN10 (keeping largest geometry)...")
-    initial_count = len(parcels)
-    parcels = parcels.sort_values('Shape_Area', ascending=False)
-    parcels = parcels.drop_duplicates(subset='PIN10', keep='first')
-    duplicates_removed = initial_count - len(parcels)
-    print(f"After deduplication: {len(parcels):,} ({duplicates_removed:,} duplicates removed)")
-    
-    # Reproject to WGS84 (standard web projection)
-    if parcels.crs != 'EPSG:4326':
-        print("\nReprojecting to EPSG:4326 (WGS84)...")
-        parcels = parcels.to_crs('EPSG:4326')
+        print(f"After filtering to Chicago: {len(parcels):,}")
     
     # Save
     output_path = f'data/processed/{region}_parcels_raw.geojson'
