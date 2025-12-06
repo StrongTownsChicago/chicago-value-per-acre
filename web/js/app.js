@@ -70,26 +70,26 @@ const SCALES = {
     field: "tax_per_acre",
     colors: [
       { threshold: 1, color: "#999999", label: "$0" },
-      { threshold: 35000, color: "#8B0000", label: "<$35k" },
-      { threshold: 75000, color: "#DC143C", label: "$35k-$75k" },
-      { threshold: 150000, color: "#FF6347", label: "$75k-$150k" },
-      { threshold: 350000, color: "#FFA500", label: "$150k-$350k" },
-      { threshold: 700000, color: "#FFFF00", label: "$350k-$700k" },
-      { threshold: 5000000, color: "#90EE90", label: "$700k-$5M" },
-      { threshold: Infinity, color: "#006400", label: "$5M+" },
+      { threshold: 10000, color: "#8B0000", label: "<$10k" }, // matches $500k market value
+      { threshold: 20000, color: "#DC143C", label: "$10k-$20k" }, // matches $1M market value
+      { threshold: 40000, color: "#FF6347", label: "$20k-$40k" }, // matches $2M market value
+      { threshold: 100000, color: "#FFA500", label: "$40k-$100k" }, // matches $5M market value
+      { threshold: 200000, color: "#FFFF00", label: "$100k-$200k" }, // matches $10M market value
+      { threshold: 1000000, color: "#90EE90", label: "$200k-$1M" }, // matches $50M market value
+      { threshold: Infinity, color: "#006400", label: "$1M+" },
     ],
     heights: [
       [0, 0],
-      [75000, 15],
-      [350000, 60],
-      [700000, 120],
-      [2500000, 250],
-      [5000000, 600],
-      [10000000, 1500],
-      [50000000, 4000],
-      [100000000, 6000],
-      [200000000, 9000],
-      [500000000, 14000],
+      [20000, 15],
+      [100000, 60],
+      [200000, 120],
+      [500000, 250],
+      [1000000, 600],
+      [2000000, 1500],
+      [10000000, 4000],
+      [20000000, 6000],
+      [40000000, 9000],
+      [100000000, 14000],
     ],
   },
 };
@@ -252,7 +252,7 @@ map.on("load", () => {
   // To load tiles locally, generate them with the scripts in the repo and serve via local server
   map.addSource("parcels", {
     type: "vector",
-    url: "pmtiles://tiles/chicago_parcels.pmtiles",
+    url: "pmtiles://tiles/chicago_parcels_hq.pmtiles",
     promoteId: "pin_10",
   });
 
