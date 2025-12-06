@@ -56,11 +56,6 @@ def process_parcels(region):
         
         print(f"After filtering to Chicago: {len(parcels):,}")
     
-    # Reproject to WGS84 (standard web projection)
-    if parcels.crs != 'EPSG:4326':
-        print("\nReprojecting to EPSG:4326 (WGS84)...")
-        parcels = parcels.to_crs('EPSG:4326')
-    
     # Save
     output_path = f'data/processed/{region}_parcels_raw.geojson'
     print(f"\nSaving to {output_path}...")

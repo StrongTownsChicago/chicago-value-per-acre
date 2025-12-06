@@ -93,13 +93,10 @@ def join_parcel_data(region):
     # Normalize PIN columns to string
     assessor['pin_10'] = assessor['pin_10'].astype(str)
     addresses['pin_10'] = addresses['pin_10'].astype(str)
-    
-    # Find PIN field (might be 'PIN', 'PIN10', or 'pin')
-    pin_col = [c for c in parcels.columns if 'pin' in c.lower()][0]
-    print(f"\nPIN column in parcels: {pin_col}")
+
     
     # Standardize parcel PINs to 10 digits
-    parcels['pin_10'] = parcels[pin_col].apply(clean_pin_10digit)
+    parcels['pin_10'] = parcels["PIN10"].apply(clean_pin_10digit)
     
     # Join datasets
     print("\nJoining datasets...")
@@ -114,14 +111,23 @@ def join_parcel_data(region):
     joined = joined[joined['final_value'].notnull()].copy()
     print(f"Keeping {len(joined):,} matched parcels")
     
-    # Calculate acres
+    # In some cases, there are multiple geometries per PIN10 (e.g., condos/discontiguous parcels)
+    # We aggregate these geometries to create a single geometry per PIN10
+    print("\nAggregating geometries by PIN10...")
+    pin10_count = len(joined)
+    joined = joined.groupby('pin_10', as_index=False).agg({
+        'geometry': lambda x: unary_union(x.tolist()) if len(x) > 1 else x.iloc[0],
+        'final_value': 'first',
+        'class': 'first',
+        'pin_14': 'first',
+        'full_address': 'first'
+    })
+    joined = gpd.GeoDataFrame(joined, geometry='geometry', crs=parcels.crs)
+    print(f"Reduced from {pin10_count:,} to {len(joined):,} parcels")
+    
+    # Calculate acres and market value after geometry aggregation
     SQFT_PER_ACRE = 43560
-    
-    # Get area field
-    area_col = [c for c in joined.columns if 'area' in c.lower() and 'pin' not in c.lower()][0]
-    print(f"Area column: {area_col}")
-    
-    joined['acres'] = joined[area_col] / SQFT_PER_ACRE
+    joined['acres'] = joined.geometry.area / SQFT_PER_ACRE
     
     # Apply class-specific multipliers to get market value
     print("\nCalculating market values...")
@@ -186,7 +192,7 @@ def join_parcel_data(region):
         overlap_grouped = joined.groupby('overlap_group', as_index=False).agg({
             'geometry': lambda x: unary_union(x.tolist()),
             'market_value': 'sum',
-            'acres': 'sum',
+            'acres': 'first', # We recalculate acres from merged geometry later
             'pin_10': 'first',
             'pin_14': 'first',
             'class': 'first',
@@ -194,6 +200,10 @@ def join_parcel_data(region):
         })
         
         joined = gpd.GeoDataFrame(overlap_grouped, geometry='geometry', crs=parcels.crs)
+        
+        # Recalculate acres from merged geometry
+        joined['acres'] = joined.geometry.area / SQFT_PER_ACRE
+        
         print(f"Reduced to {len(joined):,} parcels after merging")
     else:
         print("No spatial overlaps detected")
