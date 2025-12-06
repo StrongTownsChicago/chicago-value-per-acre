@@ -89,6 +89,32 @@ python scripts/04_join_parcel_data.py cook_county
 ./scripts/05_generate_tiles.sh cook_county standard
 ```
 
+### Extracting Property Tax Data (Optional)
+
+To add 2023 property tax data from the PTAXSIM database (https://ccao-data.github.io/ptaxsim/ & https://github.com/ccao-data/ptaxsim):
+
+**Prerequisites:**
+
+- R installed (`sudo apt install r-base r-base-dev`)
+- System dependencies: `sudo apt install libcurl4-openssl-dev libssl-dev libxml2-dev libsqlite3-dev`
+
+**Setup:**
+
+```bash
+# Download PTAXSIM database (800MB compressed)
+wget https://ccao-data-public-us-east-1.s3.amazonaws.com/ptaxsim/ptaxsim-2023.0.0.db.bz2
+bzip2 -d ptaxsim-2023.0.0.db.bz2
+mv ptaxsim-2023.0.0.db data/raw/ptaxsim.db
+
+# Install R packages
+R -e "install.packages('remotes'); install.packages('dplyr'); remotes::install_github('ccao-data/ptaxsim'); install.packages('jsonlite')"
+
+# Run extraction script (takes a while)
+Rscript scripts/extract_tax_bills.R
+```
+
+The script generates `data/processed/tax_bills_2023.csv` which is joined in `04_join_parcel_data.py`.
+
 ### Local Development
 
 ```bash
