@@ -368,19 +368,19 @@ map.on("load", () => {
             ? `<div><strong>Tax/Acre:</strong> ${fmt(
                 p.tax_per_acre
               )} (2023)</div>`
-            : ""
+            : `<div style="color: #999; font-size: 12px;">Property tax data not available</div>`
         }
         <div><strong>Total Value:</strong> ${fmt(p.market_value)}</div>
         ${
           p.total_tax_2023
-            ? `<div><strong>Total Tax:</strong> ${fmt(
+            ? `<div><strong>Total Property Tax:</strong> ${fmt(
                 p.total_tax_2023
               )} (2023)</div>`
             : ""
         }
         ${
           p.effective_tax_rate
-            ? `<div><strong>Effective Rate:</strong> ${fmtPct(
+            ? `<div><strong>Effective Property Rate:</strong> ${fmtPct(
                 p.effective_tax_rate
               )}</div>`
             : ""
@@ -393,7 +393,6 @@ map.on("load", () => {
           p.pin_14 || p.pin_10 + "0000"
         }" target="_blank">Source →</a></div>
       </div>`;
-
       new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
     }
   });
