@@ -18,10 +18,24 @@
 const MapCore = (function () {
   const POSITRON =
     "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+  const REMOTE_TILE_BASE = "https://tiles.open-advocacy.com";
 
-  // Register the PMTiles protocol once, at module load.
-  const protocol = new pmtiles.Protocol();
-  maplibregl.addProtocol("pmtiles", protocol.tile);
+  // Register the PMTiles protocol once, at module load. Guarded so the module can
+  // also be required in Node for unit tests (where pmtiles/maplibregl are absent).
+  if (typeof pmtiles !== "undefined" && typeof maplibregl !== "undefined") {
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+  }
+
+  // Resolve a tile filename to a pmtiles:// URL. With `?tiles=local`, tiles are
+  // served from the dev server's /tiles directory (for previewing freshly built
+  // tiles); by default they come from the remote CDN, so production and shared
+  // links are unaffected. The CDN host lives here, in exactly one place.
+  function tileUrl(name) {
+    const local = new URLSearchParams(location.search).get("tiles") === "local";
+    const base = local ? `${location.origin}/tiles` : REMOTE_TILE_BASE;
+    return `pmtiles://${base}/${name}`;
+  }
 
   const state = {
     map: null,
@@ -291,5 +305,10 @@ const MapCore = (function () {
     return api;
   }
 
-  return { init };
+  return { init, tileUrl };
 })();
+
+// Expose for Node unit tests; inert in the browser.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = MapCore;
+}

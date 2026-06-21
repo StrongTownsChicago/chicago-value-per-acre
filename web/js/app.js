@@ -5,14 +5,12 @@ let currentExtent = "chicago";
 let isHighQuality = false;
 let displayMetric = "value";
 
+// Filename-keyed; MapCore.tileUrl() picks remote (default) or local (?tiles=local).
 const TILES = {
-  chicago: "pmtiles://https://tiles.open-advocacy.com/chicago_parcels.pmtiles",
-  chicagoHQ:
-    "pmtiles://https://tiles.open-advocacy.com/chicago_parcels_hq.pmtiles",
-  county:
-    "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles",
-  countyHQ:
-    "pmtiles://https://tiles.open-advocacy.com/cook_county_parcels.pmtiles",
+  chicago: MapCore.tileUrl("chicago_parcels.pmtiles"),
+  chicagoHQ: MapCore.tileUrl("chicago_parcels_hq.pmtiles"),
+  county: MapCore.tileUrl("cook_county_parcels.pmtiles"),
+  countyHQ: MapCore.tileUrl("cook_county_parcels.pmtiles"),
 };
 
 function getCurrentTileUrl() {
