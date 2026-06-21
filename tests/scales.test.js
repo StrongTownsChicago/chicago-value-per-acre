@@ -12,7 +12,19 @@ const {
   buildHeightExpression,
   buildLegendHtml,
   getClassDescription,
+  VACANT_VIEWS,
+  vacantValueExpr,
+  vacantColorExpression,
+  vacantHeightExpression,
+  vacantLegendHtml,
 } = require("../web/js/scales.js");
+
+// Thresholds in a MapLibre ["step", input, base, t1, c1, t2, c2, ...] expression.
+function stepThresholds(stepExpr) {
+  const out = [];
+  for (let i = 3; i < stepExpr.length; i += 2) out.push(stepExpr[i]);
+  return out;
+}
 
 test("buildColorExpression: leads with a gray fallback for the missing field", () => {
   const expr = buildColorExpression(SCALES.value);
@@ -91,6 +103,84 @@ test("getClassDescription: known, numeric, unknown, and empty inputs", () => {
   assert.equal(getClassDescription(null), "Unknown");
   assert.equal(getClassDescription(undefined), "Unknown");
   assert.equal(getClassDescription(""), "Unknown");
+});
+
+test("vacantValueExpr: pct is a percentage, dollar is the raw change", () => {
+  const pct = JSON.stringify(vacantValueExpr("pct"));
+  assert.match(pct, /"\*"/); // scaled by 100
+  assert.match(pct, /vacant_tax_new/);
+  assert.match(pct, /vacant_tax_cur/);
+
+  const dollar = vacantValueExpr("dollar");
+  assert.deepEqual(dollar, [
+    "-",
+    ["coalesce", ["get", "vacant_tax_new"], 0],
+    ["coalesce", ["get", "vacant_tax_cur"], 0],
+  ]);
+});
+
+test("vacantColorExpression: gray no-data, then warm (vacant) and cool (developed) steps", () => {
+  const expr = vacantColorExpression("pct");
+  assert.equal(expr[0], "case");
+  // no-data fallback first
+  assert.equal(expr[2], "#cccccc");
+  // branch on the baked vacant flag, not class
+  assert.deepEqual(expr[3], ["==", ["get", "vacant"], 1]);
+  const vacantStep = expr[4];
+  const developedStep = expr[5];
+  assert.equal(vacantStep[0], "step");
+  assert.equal(developedStep[0], "step");
+  // vacant thresholds are positive increases, ascending
+  assert.deepEqual(stepThresholds(vacantStep), [50, 100, 150]);
+  // developed thresholds are negative (relief), ascending
+  const dev = stepThresholds(developedStep);
+  assert.deepEqual(dev, [-2, -1, -0.5, -0.15]);
+  for (let i = 1; i < dev.length; i++) assert.ok(dev[i] > dev[i - 1]);
+});
+
+test("vacantColorExpression: dollar view uses dollar thresholds", () => {
+  const expr = vacantColorExpression("dollar");
+  assert.deepEqual(stepThresholds(expr[4]), [1000, 3000, 7000]);
+  assert.deepEqual(stepThresholds(expr[5]), [-1000, -300, -50, -1]);
+});
+
+test("vacantHeightExpression: interpolates on absolute dollar change", () => {
+  const expr = vacantHeightExpression();
+  assert.equal(expr[0], "interpolate");
+  assert.deepEqual(expr[1], ["linear"]);
+  assert.equal(expr[2][0], "abs");
+  const stops = expr.slice(3);
+  assert.equal(stops.length % 2, 0);
+  assert.equal(stops[0], 0); // change 0 -> height 0
+  assert.equal(stops[1], 0);
+});
+
+test("vacantLegendHtml: titled with both vacant and developed blocks", () => {
+  const html = vacantLegendHtml("pct");
+  assert.match(html, /Tax change \(%\)/);
+  assert.match(html, /Vacant lots \(pay more\)/);
+  assert.match(html, /Developed parcels \(pay less\)/);
+  assert.match(html, /\+150% or more/);
+  assert.match(html, /≈ no change/);
+});
+
+test("VACANT_VIEWS integrity: ascending step thresholds, hex colors, legends", () => {
+  for (const [view, cfg] of Object.entries(VACANT_VIEWS)) {
+    assert.ok(cfg.title, `${view} needs a title`);
+    for (const key of ["vacant", "developed"]) {
+      const s = cfg[key];
+      assert.match(s.base, /^#/, `${view}.${key} base hex`);
+      const thr = s.stops.map((p) => p[0]);
+      for (let i = 1; i < thr.length; i++) {
+        assert.ok(thr[i] > thr[i - 1], `${view}.${key} stops must ascend`);
+      }
+      assert.ok(
+        s.stops.every((p) => typeof p[1] === "string" && p[1].startsWith("#")),
+        `${view}.${key} stop colors hex`
+      );
+      assert.ok(s.legend.length > 0, `${view}.${key} legend non-empty`);
+    }
+  }
 });
 
 test("SCALES integrity: ascending thresholds ending in Infinity, ascending heights", () => {

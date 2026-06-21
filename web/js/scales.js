@@ -305,6 +305,130 @@ function getClassDescription(classCode) {
   return CLASS_DESCRIPTIONS[code] || `Class ${code}`;
 }
 
+// ---- Vacant land tax page: two color schemes, shown at once ----
+//
+// Vacant parcels (the baked `vacant` flag == 1) get a WARM ramp on their large
+// increase; every other parcel gets a COOL ramp on its small decrease. The two
+// sets are disjoint, so one fill layer carries both ramps without a shared
+// diverging scale washing out the tiny developed-parcel relief. Coloring keys off
+// the `vacant` flag (the PTAXSIM scenario's own vacancy status), not the 2024
+// assessor class, so the warm/cool split matches the modeled bills exactly.
+//
+// Each view ("pct" or "dollar") defines, per scheme, a `step` config (a base
+// color plus ascending [threshold, color] pairs, fed to MapLibre's "step"
+// expression) and a `legend` (display order, most extreme first).
+const VACANT_VIEWS = {
+  pct: {
+    title: "Tax change (%)",
+    vacant: {
+      base: "#fdbb84",
+      stops: [[50, "#fc8d59"], [100, "#e34a33"], [150, "#b30000"]],
+      legend: [
+        ["+150% or more", "#b30000"],
+        ["+100% to +150%", "#e34a33"],
+        ["+50% to +100%", "#fc8d59"],
+        ["+5% to +50%", "#fdbb84"],
+      ],
+    },
+    developed: {
+      base: "#08519c",
+      stops: [[-2, "#4292c6"], [-1, "#9ecae1"], [-0.5, "#deebf7"], [-0.15, "#f7f7f7"]],
+      legend: [
+        ["−2% or more", "#08519c"],
+        ["−1% to −2%", "#4292c6"],
+        ["−0.5% to −1%", "#9ecae1"],
+        ["−0.15% to −0.5%", "#deebf7"],
+        ["≈ no change", "#f7f7f7"],
+      ],
+    },
+  },
+  dollar: {
+    title: "Tax change ($)",
+    vacant: {
+      base: "#fdbb84",
+      stops: [[1000, "#fc8d59"], [3000, "#e34a33"], [7000, "#b30000"]],
+      legend: [
+        ["+$7,000 or more", "#b30000"],
+        ["+$3,000 to $7,000", "#e34a33"],
+        ["+$1,000 to $3,000", "#fc8d59"],
+        ["under +$1,000", "#fdbb84"],
+      ],
+    },
+    developed: {
+      base: "#08519c",
+      stops: [[-1000, "#4292c6"], [-300, "#9ecae1"], [-50, "#deebf7"], [-1, "#f7f7f7"]],
+      legend: [
+        ["−$1,000 or more", "#08519c"],
+        ["−$300 to $1,000", "#4292c6"],
+        ["−$50 to $300", "#9ecae1"],
+        ["under −$50", "#deebf7"],
+        ["≈ no change", "#f7f7f7"],
+      ],
+    },
+  },
+};
+
+// The per-parcel value the active view colors by: % change or $ change.
+// current bill = vacant_tax_cur, modeled bill = vacant_tax_new.
+function vacantValueExpr(view) {
+  const cur = ["coalesce", ["get", "vacant_tax_cur"], 0];
+  const neu = ["coalesce", ["get", "vacant_tax_new"], 0];
+  const change = ["-", neu, cur];
+  if (view === "dollar") return change;
+  // % change, floored denominator to avoid divide-by-zero on $0 bills.
+  return ["*", 100, ["/", change, ["max", 1, cur]]];
+}
+
+// Two-scheme color expression: gray where no scenario data, warm step for vacant
+// parcels, cool step for everyone else.
+function vacantColorExpression(view) {
+  const cfg = VACANT_VIEWS[view];
+  const val = vacantValueExpr(view);
+  const step = (scheme) => ["step", val, scheme.base, ...scheme.stops.flat()];
+  return [
+    "case",
+    ["any", ["!", ["has", "vacant_tax_new"]], ["!", ["has", "vacant_tax_cur"]]],
+    "#cccccc",
+    ["==", ["get", "vacant"], 1],
+    step(cfg.vacant),
+    step(cfg.developed),
+  ];
+}
+
+// 3D height = magnitude of the dollar change (direction is shown by color). Stops
+// are hand-tuned so the residential relief range stays visible while vacant lots
+// spike, instead of a few big commercial swings flattening everything.
+function vacantHeightExpression() {
+  const change = [
+    "abs",
+    ["-", ["coalesce", ["get", "vacant_tax_new"], 0], ["coalesce", ["get", "vacant_tax_cur"], 0]],
+  ];
+  return [
+    "interpolate", ["linear"], change,
+    0, 0, 100, 10, 500, 40, 1000, 80, 2500, 200,
+    5000, 500, 10000, 1200, 25000, 3000, 50000, 6000, 100000, 10000,
+  ];
+}
+
+// Legend HTML for the active view: a "Vacant lots" block and a "Developed" block.
+function vacantLegendHtml(view) {
+  const cfg = VACANT_VIEWS[view];
+  const block = (heading, items) =>
+    `<div class="legend-block"><h4>${heading}</h4>` +
+    items
+      .map(
+        ([label, color]) =>
+          `<div class="legend-item"><span class="legend-color" style="background: ${color}"></span><span>${label}</span></div>`
+      )
+      .join("") +
+    `</div>`;
+  return (
+    `<h3>${cfg.title}</h3>` +
+    block("Vacant lots (pay more)", cfg.vacant.legend) +
+    block("Developed parcels (pay less)", cfg.developed.legend)
+  );
+}
+
 // Expose the pure helpers to Node for unit testing. Ignored in the browser
 // (module is undefined there), so the <script> behavior is unchanged.
 if (typeof module !== "undefined" && module.exports) {
@@ -315,5 +439,10 @@ if (typeof module !== "undefined" && module.exports) {
     buildHeightExpression,
     buildLegendHtml,
     getClassDescription,
+    VACANT_VIEWS,
+    vacantValueExpr,
+    vacantColorExpression,
+    vacantHeightExpression,
+    vacantLegendHtml,
   };
 }

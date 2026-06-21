@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chicago/Cook County Value Per Acre Map</title>
+    <title>Chicago/Cook County Vacant Land Tax Map</title>
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <link
       href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
@@ -47,67 +47,61 @@
           <line x1="14" y1="2" x2="2" y2="14" />
         </svg>
       </button>
-      <h1>Chicago/Cook County Value Per Acre</h1>
+      <h1>Chicago/Cook County Vacant Land Tax</h1>
       <p>
-        Dense, walkable neighborhoods generate more tax value per acre. View by
-        <strong>market value</strong> (2024 assessments) or
-        <strong>property tax</strong> (2023 bills). Learn more at
+        Vacant and minimally-improved lots are assessed far below their neighbors
+        and pay little to sit idle. What if Cook County raised their assessment
+        level from 10% to 25% (the legal maximum)? Vacant lots would pay much
+        more, and the change is <strong>revenue-neutral</strong>, so every other
+        property pays slightly less. Learn more at
         <a href="https://strongtownschicago.org" target="_blank"
           >StrongTownsChicago.org</a
-        >
+        >.
       </p>
-      <p style="margin-top: -4px">
-        <a href="vacant.html"
-          >See what a higher vacant land tax would do &rarr;</a
-        >
-      </p>
+
+      <label class="control-label" for="vacant-view">Show</label>
+      <select id="vacant-view" class="control-select">
+        <option value="pct">Tax change (%)</option>
+        <option value="dollar">Tax change ($)</option>
+      </select>
 
       <button class="control-btn" id="toggle-3d">Enable 3D View</button>
       <button class="control-btn" id="toggle-cta">Hide CTA Lines</button>
-      <button class="control-btn" id="toggle-metric">Show Tax Data</button>
-      <p id="metric-note">Currently showing market value data (2024)</p>
-      <button class="control-btn" id="toggle-extent">
-        Show All Cook County
-      </button>
-      <button class="control-btn" id="toggle-quality">
-        Show All Parcels (Slower)
-      </button>
-      <p id="quality-note"></p>
+      <button class="control-btn" id="toggle-extent">Show All Cook County</button>
+      <p id="extent-note"></p>
+
+      <div id="vacant-stats"></div>
 
       <div id="legend"></div>
 
       <div id="methodology">
         <h3>Methodology</h3>
         <p style="font-size: 12px; color: #888; line-height: 1.5">
-          Market values derived from
-          <a
-            href="https://datacatalog.cookcountyil.gov/Property-Taxation/Assessor-Assessed-Values/uzyt-m557"
-            target="_blank"
-            >Cook County 2024 assessed values</a
-          >
-          using class-specific assessment levels (10% residential, 20%
-          nonprofit, 25% commercial). Parcel boundaries from
-          <a
-            href="https://hub-cookcountyil.opendata.arcgis.com/datasets/5c2e70b7f31349dc83924a98df8fdbbb_2024"
-            target="_blank"
-            >Cook County GIS</a
-          >. CTA lines from
-          <a
-            href="https://data.cityofchicago.org/Transportation/CTA-L-Rail-Lines/xbyr-jnvx"
-            target="_blank"
-            >Chicago Data Portal</a
-          >. Tax data derived from
+          Models raising the assessment level on vacant land (Cook County classes
+          1-00 and 1-90) from 10% to 25%, computed in
           <a href="https://ccao-data.github.io/ptaxsim/" target="_blank"
             >PTAXSIM</a
-          >. Values represent assessed property tax value per acre of land area.
-          Source links for condos and multi-unit properties link to the first
-          unit.
+          >
+          on 2024 assessment and levy data. The model is revenue-neutral per
+          taxing agency: each agency keeps its levy, and its rate falls as the
+          larger vacant base is added, so vacant parcels pay more and every other
+          parcel pays a little less. Bills come from the real 14-digit unit PINs
+          summed to each parcel.
+        </p>
+        <p style="font-size: 12px; color: #888; line-height: 1.5">
+          Analysis approach by Stephen Hoskins,
+          <a href="https://progressandpovertyinstitute.org" target="_blank"
+            >Progress and Poverty Institute</a
+          >. Tax data derived from PTAXSIM / Cook County Assessor's Office. This is
+          a counterfactual model of 2024 bills, not a forecast; per-parcel results
+          depend on the assessor's land/building split and on TIF districts.
         </p>
       </div>
 
       <div id="open-source">
         <p id="github-repo-section">
-          Code for this map is open source and available in this
+          <a href="index.html">&larr; Back to the value-per-acre map</a> &middot;
+          Code is open source in this
           <a
             href="https://github.com/StrongTownsChicago/chicago-value-per-acre"
             target="_blank"
@@ -121,6 +115,6 @@
 
     <script src="js/scales.js"></script>
     <script src="js/map-core.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/vacant.js"></script>
   </body>
 </html>
