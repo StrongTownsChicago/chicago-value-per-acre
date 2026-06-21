@@ -1,0 +1,79 @@
+{
+  "cook_county": {
+    "n_total": 1412386,
+    "n_vacant": 61623,
+    "sum_current": 19192352613.0,
+    "sum_vacant_current": 139138037.0,
+    "sum_vacant_new": 335794100.0,
+    "vacant_increase": 196656063.0,
+    "avg_nonvacant_change_pct": -1.2070179448337517,
+    "by_category": {
+      "Apartments (7+ units)": {
+        "n": 18812,
+        "avg_change_dollar": -743.1651073782692,
+        "total_change_dollar": -13980422.0,
+        "avg_change_pct": -1.3009235344964838
+      },
+      "Commercial / retail": {
+        "n": 52416,
+        "avg_change_dollar": -653.2532242063492,
+        "total_change_dollar": -34240921.0,
+        "avg_change_pct": -1.384248145611268
+      },
+      "Condominium": {
+        "n": 17097,
+        "avg_change_dollar": -1419.1600280751009,
+        "total_change_dollar": -24263379.0,
+        "avg_change_pct": -1.2874808915639215
+      },
+      "Exempt": {
+        "n": 83493,
+        "avg_change_dollar": -4.979818667433198,
+        "total_change_dollar": -415780.0,
+        "avg_change_pct": -1.2912604820968743
+      },
+      "Industrial": {
+        "n": 20440,
+        "avg_change_dollar": -754.0513209393347,
+        "total_change_dollar": -15412809.0,
+        "avg_change_pct": -1.3942059082170872
+      },
+      "Non-profit": {
+        "n": 351,
+        "avg_change_dollar": -791.9230769230769,
+        "total_change_dollar": -277965.0,
+        "avg_change_pct": -1.1984048171937387
+      },
+      "Office / multistory": {
+        "n": 5982,
+        "avg_change_dollar": -3876.6701771982616,
+        "total_change_dollar": -23190241.0,
+        "avg_change_pct": -1.3196101975719032
+      },
+      "Other": {
+        "n": 252442,
+        "avg_change_dollar": -154.1991348507776,
+        "total_change_dollar": -38926338.0,
+        "avg_change_pct": -0.8932146622942144
+      },
+      "Single-family / townhome": {
+        "n": 738590,
+        "avg_change_dollar": -81.93103751743186,
+        "total_change_dollar": -60513445.0,
+        "avg_change_pct": -1.2334161781863529
+      },
+      "Small apartments (2-6)": {
+        "n": 161140,
+        "avg_change_dollar": -116.38586943030904,
+        "total_change_dollar": -18754419.0,
+        "avg_change_pct": -1.304222703726073
+      },
+      "Vacant land": {
+        "n": 61623,
+        "avg_change_dollar": 3191.2770069616863,
+        "total_change_dollar": 196656063.0,
+        "avg_change_pct": 141.33882239548916
+      }
+    }
+  }
+}

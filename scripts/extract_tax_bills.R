@@ -1,64 +1,56 @@
 #!/usr/bin/env Rscript
-library(ptaxsim)
-library(dplyr)
-library(jsonlite)
+# Extract 2023 property tax bills per pin_10 from PTAXSIM.
+#
+# Bills the REAL 14-digit leaf PINs and sums them to pin_10. It must not
+# reconstruct PINs as paste0(pin_10, "0000"): in Cook County the last four PIN
+# digits are the unit number, so condo/leasehold units carry non-zero suffixes
+# (…1001, …1002, …) and never end in 0000. The old reconstruction silently
+# dropped every condo (~19.6k buildings, ~$2.3B in tax) — they showed as missing
+# tax data on the map. Standard (non-condo) parcels are unchanged: their single
+# leaf is the …0000 PIN, so summing leaves reproduces the old value exactly.
+#
+# Billing is county-wide; the per-pin_10 output is region-agnostic and is joined
+# by pin_10 in 04_join_parcel_data.py. The optional region arg is accepted for
+# CLI compatibility but does not change the output.
+#
+# Usage: Rscript scripts/extract_tax_bills.R [chicago|cook_county]
 
-# Get command line arguments
+suppressMessages({
+  library(ptaxsim)
+  library(data.table)
+})
+
 args <- commandArgs(trailingOnly = TRUE)
-
-if (length(args) != 1) {
-  cat("Usage: Rscript extract_tax_bills.R <region>\n")
-  cat("  region: chicago | cook_county\n")
-  quit(status = 1)
-}
-
-region <- args[1]
-
-if (!region %in% c("chicago", "cook_county")) {
+if (length(args) >= 1 && !args[1] %in% c("chicago", "cook_county")) {
   cat("Error: Region must be 'chicago' or 'cook_county'\n")
   quit(status = 1)
 }
 
-# Set input path based on region
-input_path <- paste0("data/processed/", region, "_parcels_final.geojson")
+YEAR <- 2023
 
-if (!file.exists(input_path)) {
-  cat("Error: Input file not found:", input_path, "\n")
-  quit(status = 1)
-}
-
-cat("Processing", region, "parcels from", input_path, "\n")
-
-# Connect to database
 ptaxsim_db_conn <- DBI::dbConnect(
-  RSQLite::SQLite(), 
+  RSQLite::SQLite(),
   "./data/raw/tax_data/ptaxsim.db"
 )
 
-# Read GeoJSON and extract PINs
-geojson <- fromJSON(input_path)
-pins_10 <- unique(geojson$features$properties$pin_10)
-pins_14 <- paste0(pins_10, "0000")
+cat("Loading real", YEAR, "leaf PINs...\n")
+pins <- DBI::dbGetQuery(
+  ptaxsim_db_conn,
+  sprintf("SELECT pin FROM pin WHERE year = %d", YEAR)
+)$pin
+cat("  ", format(length(pins), big.mark = ","), "leaf PINs\n")
 
-cat("Calculating tax bills for", length(pins_14), "PINs...\n")
+cat("Calculating tax bills...\n")
+bills <- as.data.table(tax_bill(YEAR, pins))
 
-# Calculate 2023 bills
-bills <- tax_bill(2023, pins_14)
+# Sum agency line items to a per-PIN bill, then sum leaf PINs to pin_10.
+per_pin <- bills[, .(bill = sum(final_tax)), by = pin]
+per_pin[, pin_10 := substr(pin, 1, 10)]
+total <- per_pin[, .(total_tax_2023 = round(sum(bill))), by = pin_10]
 
-# Sum to get total per PIN
-total <- bills %>%
-  group_by(pin) %>%
-  summarize(total_tax_2023 = sum(final_tax)) %>%
-  mutate(pin_10 = substr(pin, 1, 10)) %>%
-  select(pin_10, total_tax_2023)
+cat("Calculated", format(nrow(total), big.mark = ","), "pin_10 tax bills\n")
 
-cat("Calculated", nrow(total), "tax bills\n")
+DBI::dbDisconnect(ptaxsim_db_conn)
 
-# Save
-write.csv(
-  total, 
-  "data/processed/tax_bills_2023.csv", 
-  row.names = FALSE
-)
-
+write.csv(total, "data/processed/tax_bills_2023.csv", row.names = FALSE)
 cat("Saved to data/processed/tax_bills_2023.csv\n")

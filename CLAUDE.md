@@ -6,6 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Interactive 3D web map showing property tax value per acre across Chicago and Cook County, built with 2024 Cook County assessment data. Live at https://www.strongtownschicago.org/value-per-acre-map. Developed by Strong Towns Chicago.
 
+## Testing (required)
+
+**Every change must ship with high-value tests.** This is not optional. A change is not complete until it has tests that would fail if the change regressed, and those tests pass.
+
+- **High-value, not box-ticking.** Test the logic that matters: pure functions, paint/expression builders, tax math, data-correctness gates against known targets. Do not write trivial tests for the sake of coverage. If a change has no meaningful behavior to test, say so explicitly and explain why.
+- **Pick the right layer.** Pure JS helpers → `node --test 'tests/*.test.js'` (expose them with a guarded `module.exports`, inert in the browser). Python/pipeline logic and data outputs → `pytest` (`.venv/Scripts/python -m pytest tests/`). Heavy pipeline outputs (e.g. PTAXSIM model results) → a correctness gate that loads the produced artifact and asserts it against published/known figures, and skips cleanly if the artifact is absent.
+- **Run them before claiming done.** Always run the relevant suite and report the result. Never describe a change as finished without showing tests passing.
+- **Validate behavior, not just units.** Where a change affects the rendered map, also verify it in the browser (Chrome DevTools) in addition to unit tests.
+
+Existing suites: `tests/scales.test.js` (map paint/legend/class helpers), `tests/test_vacant_scenario.py` (vacancy-model correctness gate).
+
 ## Development Setup
 
 ```bash
