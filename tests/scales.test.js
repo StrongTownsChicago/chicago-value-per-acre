@@ -12,8 +12,9 @@ const {
   buildHeightExpression,
   buildLegendHtml,
   getClassDescription,
-  VACANT_VIEWS,
-  vacantValueExpr,
+  VACANT_SCHEME,
+  VACANT_NO_CHANGE_COLOR,
+  vacantChangeExpr,
   vacantColorExpression,
   vacantHeightExpression,
   vacantLegendHtml,
@@ -121,43 +122,35 @@ test("getClassDescription: known, numeric, unknown, and empty inputs", () => {
   assert.equal(getClassDescription(""), "Unknown");
 });
 
-test("vacantValueExpr: pct is a percentage, dollar is the raw change", () => {
-  const pct = JSON.stringify(vacantValueExpr("pct"));
-  assert.match(pct, /"\*"/); // scaled by 100
-  assert.match(pct, /vacant_tax_new/);
-  assert.match(pct, /vacant_tax_cur/);
-
-  const dollar = vacantValueExpr("dollar");
-  assert.deepEqual(dollar, [
+test("vacantChangeExpr: modeled bill minus current bill (null-safe)", () => {
+  assert.deepEqual(vacantChangeExpr(), [
     "-",
     ["coalesce", ["get", "vacant_tax_new"], 0],
     ["coalesce", ["get", "vacant_tax_cur"], 0],
   ]);
 });
 
-test("vacantColorExpression: gray no-data, then warm (vacant) and cool (developed) steps", () => {
-  const expr = vacantColorExpression("pct");
+test("vacantColorExpression: no-data, then neutral $0, then warm/cool $ steps", () => {
+  const expr = vacantColorExpression();
   assert.equal(expr[0], "case");
-  // no-data fallback first
+  // no scenario data -> gray
   assert.equal(expr[2], "#cccccc");
-  // branch on the baked vacant flag, not class
-  assert.deepEqual(expr[3], ["==", ["get", "vacant"], 1]);
-  const vacantStep = expr[4];
-  const developedStep = expr[5];
+  // ~$0 change (untaxed, incl. $0-tax vacant lots) -> neutral, BEFORE the vacant branch
+  assert.deepEqual(expr[3], ["<", ["abs", vacantChangeExpr()], 1]);
+  assert.equal(expr[4], VACANT_NO_CHANGE_COLOR);
+  // then branch on the baked vacant flag (not class)
+  assert.deepEqual(expr[5], ["==", ["get", "vacant"], 1]);
+  const vacantStep = expr[6];
+  const developedStep = expr[7];
   assert.equal(vacantStep[0], "step");
   assert.equal(developedStep[0], "step");
-  // vacant thresholds are positive increases, ascending
-  assert.deepEqual(stepThresholds(vacantStep), [50, 100, 150]);
-  // developed thresholds are negative (relief), ascending
+  // vacant: positive $ increases, ascending, with a high top bin (long tail)
+  const vac = stepThresholds(vacantStep);
+  assert.deepEqual(vac, [250, 1000, 3000, 10000, 30000, 100000]);
+  // developed: negative $ relief, ascending
   const dev = stepThresholds(developedStep);
-  assert.deepEqual(dev, [-2, -1, -0.5, -0.15]);
+  assert.deepEqual(dev, [-2000, -500, -200, -75, -25]);
   for (let i = 1; i < dev.length; i++) assert.ok(dev[i] > dev[i - 1]);
-});
-
-test("vacantColorExpression: dollar view uses dollar thresholds", () => {
-  const expr = vacantColorExpression("dollar");
-  assert.deepEqual(stepThresholds(expr[4]), [1000, 3000, 7000]);
-  assert.deepEqual(stepThresholds(expr[5]), [-1000, -300, -50, -1]);
 });
 
 test("vacantHeightExpression: interpolates on absolute dollar change", () => {
@@ -171,16 +164,16 @@ test("vacantHeightExpression: interpolates on absolute dollar change", () => {
   assert.equal(stops[1], 0);
 });
 
-test("vacantLegendHtml: titled with both vacant and developed blocks", () => {
-  const html = vacantLegendHtml("pct");
-  assert.match(html, /Tax change \(%\)/);
+test("vacantLegendHtml: dollar title, both blocks, and a neutral entry", () => {
+  const html = vacantLegendHtml();
+  assert.match(html, /Annual tax change \(\$\)/);
   assert.match(html, /Vacant lots \(pay more\)/);
   assert.match(html, /Developed parcels \(pay less\)/);
-  assert.match(html, /\+150% or more/);
-  assert.match(html, /≈ no change/);
+  assert.match(html, /\+\$100,000 or more/);
+  assert.match(html, /No change \/ untaxed/);
 });
 
-test("vacantStatsHtml: headline figures and per-category rows", () => {
+test("vacantStatsHtml: headline figures, no per-category bars", () => {
   const html = vacantStatsHtml(SAMPLE_AGG);
   assert.match(html, /Who pays what/);
   assert.match(html, /61,623/); // vacant count
@@ -188,11 +181,9 @@ test("vacantStatsHtml: headline figures and per-category rows", () => {
   assert.match(html, /\$2,257/); // avg vacant current = 139.1M / 61,623
   assert.match(html, /\$5,449/); // avg vacant new = 335.8M / 61,623
   assert.match(html, /1\.2%/); // non-vacant relief (abs)
-  // category rows, sorted with the vacant increase first
-  assert.match(html, /Vacant land/);
-  assert.match(html, /\+141\.3%/);
-  assert.match(html, /Commercial \/ retail/);
-  assert.ok(html.indexOf("Vacant land") < html.indexOf("Single-family"));
+  // the per-classification breakdown was removed
+  assert.doesNotMatch(html, /stat-row/);
+  assert.doesNotMatch(html, /Commercial \/ retail/);
 });
 
 test("vacantStatsHtml: empty for missing/zero aggregates", () => {
@@ -201,22 +192,21 @@ test("vacantStatsHtml: empty for missing/zero aggregates", () => {
   assert.equal(vacantStatsHtml({ n_vacant: 0 }), "");
 });
 
-test("VACANT_VIEWS integrity: ascending step thresholds, hex colors, legends", () => {
-  for (const [view, cfg] of Object.entries(VACANT_VIEWS)) {
-    assert.ok(cfg.title, `${view} needs a title`);
-    for (const key of ["vacant", "developed"]) {
-      const s = cfg[key];
-      assert.match(s.base, /^#/, `${view}.${key} base hex`);
-      const thr = s.stops.map((p) => p[0]);
-      for (let i = 1; i < thr.length; i++) {
-        assert.ok(thr[i] > thr[i - 1], `${view}.${key} stops must ascend`);
-      }
-      assert.ok(
-        s.stops.every((p) => typeof p[1] === "string" && p[1].startsWith("#")),
-        `${view}.${key} stop colors hex`
-      );
-      assert.ok(s.legend.length > 0, `${view}.${key} legend non-empty`);
+test("VACANT_SCHEME integrity: ascending step thresholds, hex colors, legends", () => {
+  assert.ok(VACANT_SCHEME.title, "scheme needs a title");
+  assert.match(VACANT_NO_CHANGE_COLOR, /^#/);
+  for (const key of ["vacant", "developed"]) {
+    const s = VACANT_SCHEME[key];
+    assert.match(s.base, /^#/, `${key} base hex`);
+    const thr = s.stops.map((p) => p[0]);
+    for (let i = 1; i < thr.length; i++) {
+      assert.ok(thr[i] > thr[i - 1], `${key} stops must ascend`);
     }
+    assert.ok(
+      s.stops.every((p) => typeof p[1] === "string" && p[1].startsWith("#")),
+      `${key} stop colors hex`
+    );
+    assert.ok(s.legend.length > 0, `${key} legend non-empty`);
   }
 });
 

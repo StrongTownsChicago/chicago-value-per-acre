@@ -1,7 +1,6 @@
 // Vacant land tax page wiring. Shared map machinery lives in map-core.js; the
 // two-scheme color/legend logic lives in scales.js.
 
-let view = "pct";
 let extent = "chicago";
 
 function getCurrentTileUrl() {
@@ -13,7 +12,7 @@ function getCurrentTileUrl() {
 }
 
 function updateLegend() {
-  document.querySelector("#legend").innerHTML = vacantLegendHtml(view);
+  document.querySelector("#legend").innerHTML = vacantLegendHtml();
 }
 
 function signedDollar(n) {
@@ -67,7 +66,7 @@ function loadStats() {
 const api = MapCore.init({
   promoteId: "pin_10",
   getTileUrl: getCurrentTileUrl,
-  getColorExpression: () => vacantColorExpression(view),
+  getColorExpression: () => vacantColorExpression(),
   getHeightExpression: () => vacantHeightExpression(),
   buildPopupHtml: buildVacantPopupHtml,
   onLoad: () => {
@@ -81,13 +80,6 @@ const api = MapCore.init({
         : "Enable 3D View";
     });
   },
-});
-
-// View selector (% vs $)
-document.getElementById("vacant-view").addEventListener("change", (e) => {
-  view = e.target.value;
-  updateLegend();
-  api.refreshPaint();
 });
 
 // Extent toggle (Chicago HQ vs Cook County)

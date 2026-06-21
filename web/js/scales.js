@@ -92,7 +92,7 @@ function buildLegendHtml(scale) {
         `<div class="legend-item">
       <span class="legend-color" style="background: ${color}"></span>
       <span>${label}</span>
-    </div>`
+    </div>`,
     )
     .join("");
   return `<h3>${scale.title}</h3>${items}`;
@@ -305,93 +305,93 @@ function getClassDescription(classCode) {
   return CLASS_DESCRIPTIONS[code] || `Class ${code}`;
 }
 
-// ---- Vacant land tax page: two color schemes, shown at once ----
+// ---- Vacant land tax page: dollar-change coloring, two schemes at once ----
 //
-// Vacant parcels (the baked `vacant` flag == 1) get a WARM ramp on their large
-// increase; every other parcel gets a COOL ramp on its small decrease. The two
-// sets are disjoint, so one fill layer carries both ramps without a shared
-// diverging scale washing out the tiny developed-parcel relief. Coloring keys off
-// the `vacant` flag (the PTAXSIM scenario's own vacancy status), not the 2024
-// assessor class, so the warm/cool split matches the modeled bills exactly.
+// The map colors by the ANNUAL DOLLAR CHANGE in each parcel's tax bill. Percent
+// change was dropped: developed parcels all move ~-1.2%, so a percent map is
+// nearly uniform and uninformative, whereas the dollar relief varies a lot with
+// bill size. Vacant parcels (the baked `vacant` flag == 1) get a WARM ramp on
+// their increase; every other parcel gets a COOL ramp on its decrease. Parcels
+// with no current tax (and so no change) read NEUTRAL, not warm. Coloring keys
+// off the `vacant` flag (the PTAXSIM scenario's vacancy status), not the 2024
+// assessor class, so the warm/cool split matches the modeled bills.
 //
-// Each view ("pct" or "dollar") defines, per scheme, a `step` config (a base
-// color plus ascending [threshold, color] pairs, fed to MapLibre's "step"
-// expression) and a `legend` (display order, most extreme first).
-const VACANT_VIEWS = {
-  pct: {
-    title: "Tax change (%)",
-    vacant: {
-      base: "#fdbb84",
-      stops: [[50, "#fc8d59"], [100, "#e34a33"], [150, "#b30000"]],
-      legend: [
-        ["+150% or more", "#b30000"],
-        ["+100% to +150%", "#e34a33"],
-        ["+50% to +100%", "#fc8d59"],
-        ["+5% to +50%", "#fdbb84"],
-      ],
-    },
-    developed: {
-      base: "#08519c",
-      stops: [[-2, "#4292c6"], [-1, "#9ecae1"], [-0.5, "#deebf7"], [-0.15, "#f7f7f7"]],
-      legend: [
-        ["−2% or more", "#08519c"],
-        ["−1% to −2%", "#4292c6"],
-        ["−0.5% to −1%", "#9ecae1"],
-        ["−0.15% to −0.5%", "#deebf7"],
-        ["≈ no change", "#f7f7f7"],
-      ],
-    },
+// Bins span the real distribution (vacant +$0..$3.6M, developed -$0..$691k), with
+// strong gradation: fine steps where most parcels sit and high top bins for the
+// long tail. Each scheme is a `step` config (base color + ascending
+// [threshold, color] pairs) plus a `legend` (display order, most extreme first).
+const VACANT_NO_CHANGE_COLOR = "#e0e0e0";
+
+const VACANT_SCHEME = {
+  title: "Annual tax change ($)",
+  vacant: {
+    base: "#fff7ec", // < +$250
+    stops: [
+      [250, "#fdd49e"],
+      [1000, "#fdbb84"],
+      [3000, "#fc8d59"],
+      [10000, "#ef6548"],
+      [30000, "#d7301f"],
+      [100000, "#990000"],
+    ],
+    legend: [
+      ["+$100,000 or more", "#990000"],
+      ["+$30,000 to $100,000", "#d7301f"],
+      ["+$10,000 to $30,000", "#ef6548"],
+      ["+$3,000 to $10,000", "#fc8d59"],
+      ["+$1,000 to $3,000", "#fdbb84"],
+      ["+$250 to $1,000", "#fdd49e"],
+      ["up to +$250", "#fff7ec"],
+    ],
   },
-  dollar: {
-    title: "Tax change ($)",
-    vacant: {
-      base: "#fdbb84",
-      stops: [[1000, "#fc8d59"], [3000, "#e34a33"], [7000, "#b30000"]],
-      legend: [
-        ["+$7,000 or more", "#b30000"],
-        ["+$3,000 to $7,000", "#e34a33"],
-        ["+$1,000 to $3,000", "#fc8d59"],
-        ["under +$1,000", "#fdbb84"],
-      ],
-    },
-    developed: {
-      base: "#08519c",
-      stops: [[-1000, "#4292c6"], [-300, "#9ecae1"], [-50, "#deebf7"], [-1, "#f7f7f7"]],
-      legend: [
-        ["−$1,000 or more", "#08519c"],
-        ["−$300 to $1,000", "#4292c6"],
-        ["−$50 to $300", "#9ecae1"],
-        ["under −$50", "#deebf7"],
-        ["≈ no change", "#f7f7f7"],
-      ],
-    },
+  developed: {
+    base: "#084594", // <= -$2,000 (most relief)
+    stops: [
+      [-2000, "#2171b5"],
+      [-500, "#4292c6"],
+      [-200, "#6baed6"],
+      [-75, "#9ecae1"],
+      [-25, "#c6dbef"],
+    ],
+    legend: [
+      ["−$2,000 or more", "#084594"],
+      ["−$500 to $2,000", "#2171b5"],
+      ["−$200 to $500", "#4292c6"],
+      ["−$75 to $200", "#6baed6"],
+      ["−$25 to $75", "#9ecae1"],
+      ["up to −$25", "#c6dbef"],
+    ],
   },
 };
 
-// The per-parcel value the active view colors by: % change or $ change.
-// current bill = vacant_tax_cur, modeled bill = vacant_tax_new.
-function vacantValueExpr(view) {
+// Per-parcel annual dollar change: modeled bill (vacant_tax_new) minus current
+// bill (vacant_tax_cur).
+function vacantChangeExpr() {
   const cur = ["coalesce", ["get", "vacant_tax_cur"], 0];
   const neu = ["coalesce", ["get", "vacant_tax_new"], 0];
-  const change = ["-", neu, cur];
-  if (view === "dollar") return change;
-  // % change, floored denominator to avoid divide-by-zero on $0 bills.
-  return ["*", 100, ["/", change, ["max", 1, cur]]];
+  return ["-", neu, cur];
 }
 
-// Two-scheme color expression: gray where no scenario data, warm step for vacant
-// parcels, cool step for everyone else.
-function vacantColorExpression(view) {
-  const cfg = VACANT_VIEWS[view];
-  const val = vacantValueExpr(view);
-  const step = (scheme) => ["step", val, scheme.base, ...scheme.stops.flat()];
+// Color expression: gray where no scenario data; neutral where the change is ~$0
+// (untaxed parcels, including $0-tax vacant lots); warm step for vacant parcels;
+// cool step for everyone else.
+function vacantColorExpression() {
+  const change = vacantChangeExpr();
+  const step = (scheme) => [
+    "step",
+    change,
+    scheme.base,
+    ...scheme.stops.flat(),
+  ];
   return [
     "case",
     ["any", ["!", ["has", "vacant_tax_new"]], ["!", ["has", "vacant_tax_cur"]]],
     "#cccccc",
+    ["<", ["abs", change], 1],
+    VACANT_NO_CHANGE_COLOR,
     ["==", ["get", "vacant"], 1],
-    step(cfg.vacant),
-    step(cfg.developed),
+    step(VACANT_SCHEME.vacant),
+    step(VACANT_SCHEME.developed),
   ];
 }
 
@@ -399,33 +399,50 @@ function vacantColorExpression(view) {
 // are hand-tuned so the residential relief range stays visible while vacant lots
 // spike, instead of a few big commercial swings flattening everything.
 function vacantHeightExpression() {
-  const change = [
-    "abs",
-    ["-", ["coalesce", ["get", "vacant_tax_new"], 0], ["coalesce", ["get", "vacant_tax_cur"], 0]],
-  ];
+  const change = ["abs", vacantChangeExpr()];
   return [
-    "interpolate", ["linear"], change,
-    0, 0, 100, 10, 500, 40, 1000, 80, 2500, 200,
-    5000, 500, 10000, 1200, 25000, 3000, 50000, 6000, 100000, 10000,
+    "interpolate",
+    ["linear"],
+    change,
+    0,
+    0,
+    100,
+    10,
+    500,
+    40,
+    1000,
+    80,
+    2500,
+    200,
+    5000,
+    500,
+    10000,
+    1200,
+    25000,
+    3000,
+    50000,
+    6000,
+    100000,
+    10000,
   ];
 }
 
-// Legend HTML for the active view: a "Vacant lots" block and a "Developed" block.
-function vacantLegendHtml(view) {
-  const cfg = VACANT_VIEWS[view];
+// Legend HTML: a neutral row, a "Vacant lots" block, and a "Developed" block.
+function vacantLegendHtml() {
   const block = (heading, items) =>
     `<div class="legend-block"><h4>${heading}</h4>` +
     items
       .map(
         ([label, color]) =>
-          `<div class="legend-item"><span class="legend-color" style="background: ${color}"></span><span>${label}</span></div>`
+          `<div class="legend-item"><span class="legend-color" style="background: ${color}"></span><span>${label}</span></div>`,
       )
       .join("") +
     `</div>`;
   return (
-    `<h3>${cfg.title}</h3>` +
-    block("Vacant lots (pay more)", cfg.vacant.legend) +
-    block("Developed parcels (pay less)", cfg.developed.legend)
+    `<h3>${VACANT_SCHEME.title}</h3>` +
+    block("Vacant lots (pay more)", VACANT_SCHEME.vacant.legend) +
+    block("Developed parcels (pay less)", VACANT_SCHEME.developed.legend) +
+    block("", [["No change / untaxed", VACANT_NO_CHANGE_COLOR]])
   );
 }
 
@@ -434,37 +451,23 @@ function vacantLegendHtml(view) {
 function vacantStatsHtml(cc) {
   if (!cc || !cc.n_vacant) return "";
   const n = (x) => Math.round(x).toLocaleString("en-US");
-  const millions = (x) => "$" + Math.round(x / 1e6).toLocaleString("en-US") + "M";
+  const millions = (x) =>
+    "$" + Math.round(x / 1e6).toLocaleString("en-US") + "M";
   const dollars = (x) => "$" + Math.round(x).toLocaleString("en-US");
 
   const avgCur = cc.sum_vacant_current / cc.n_vacant;
   const avgNew = cc.sum_vacant_new / cc.n_vacant;
   const nNon = cc.n_total - cc.n_vacant;
 
-  const headline =
+  return (
+    `<h3>Who pays what</h3>` +
     `<p>Raising vacant land's assessment to 25% would make the ` +
     `<strong>${n(cc.n_vacant)}</strong> vacant lots pay <strong>${millions(cc.vacant_increase)}</strong> ` +
-    `more — the average vacant bill rising from <strong>${dollars(avgCur)}</strong> to ` +
+    `more; the average vacant bill rising from <strong>${dollars(avgCur)}</strong> to ` +
     `<strong>${dollars(avgNew)}</strong>. The change is revenue-neutral, so the other ` +
-    `${n(nNon)} parcels each pay about <strong>${Math.abs(cc.avg_nonvacant_change_pct).toFixed(1)}%</strong> less.</p>`;
-
-  const cats = Object.entries(cc.by_category).sort(
-    (a, b) => b[1].avg_change_pct - a[1].avg_change_pct
+    `${n(nNon)} parcels pay about <strong>${Math.abs(cc.avg_nonvacant_change_pct).toFixed(1)}%</strong> less ` +
+    `on average (relief varies with bill size).</p>`
   );
-  const maxAbs = Math.max(...cats.map(([, v]) => Math.abs(v.avg_change_pct))) || 1;
-  const rows = cats
-    .map(([name, v]) => {
-      const w = Math.max(2, (Math.abs(v.avg_change_pct) / maxAbs) * 100);
-      const pos = v.avg_change_pct >= 0;
-      return (
-        `<div class="stat-row"><span class="stat-name">${name}</span>` +
-        `<span class="stat-bar"><span class="stat-fill ${pos ? "pos" : "neg"}" style="width:${w}%"></span></span>` +
-        `<span class="stat-val">${pos ? "+" : ""}${v.avg_change_pct.toFixed(1)}%</span></div>`
-      );
-    })
-    .join("");
-
-  return `<h3>Who pays what</h3>${headline}${rows}`;
 }
 
 // Expose the pure helpers to Node for unit testing. Ignored in the browser
@@ -477,8 +480,9 @@ if (typeof module !== "undefined" && module.exports) {
     buildHeightExpression,
     buildLegendHtml,
     getClassDescription,
-    VACANT_VIEWS,
-    vacantValueExpr,
+    VACANT_SCHEME,
+    VACANT_NO_CHANGE_COLOR,
+    vacantChangeExpr,
     vacantColorExpression,
     vacantHeightExpression,
     vacantLegendHtml,
