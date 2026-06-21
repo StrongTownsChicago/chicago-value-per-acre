@@ -98,9 +98,11 @@ function buildValuePopupHtml(p) {
     <div><strong>Type:</strong> ${getClassDescription(p.class)}</div>
     <div><strong>Class:</strong> ${p.class || "N/A"}</div>
     <div><strong>PIN:</strong> ${p.pin_10 || "N/A"}</div>
-    <div><a href="https://www.cookcountyassessor.com/pin/${
-      p.pin_14 || p.pin_10 + "0000"
-    }" target="_blank">Source →</a></div>
+    ${
+      p.pin_14
+        ? `<div><a href="https://www.cookcountyassessor.com/pin/${p.pin_14}" target="_blank">Source →</a></div>`
+        : ""
+    }
   </div>`;
 }
 
