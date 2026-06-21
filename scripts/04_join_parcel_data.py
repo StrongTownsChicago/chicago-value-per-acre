@@ -101,7 +101,23 @@ def join_parcel_data(region):
     else:
         print(f"Warning: Tax bill data not found at {tax_path}")
         print("  Skipping tax data. Run scripts/extract_tax_bills.R to generate.")
-    
+
+    # Load the vacancy-tax scenario if available (optional). pin_10 must be read
+    # as a string to preserve leading zeros for the join.
+    vacant_scn = None
+    vacant_path = 'data/processed/vacant_scenario_2024.csv'
+    if os.path.exists(vacant_path):
+        print("Loading vacancy-tax scenario...")
+        vacant_scn = pd.read_csv(vacant_path, dtype={'pin_10': str})
+        vacant_scn = vacant_scn.rename(columns={
+            'tax_current': 'vacant_tax_cur',
+            'tax_vacant25': 'vacant_tax_new',
+        })[['pin_10', 'vacant_tax_cur', 'vacant_tax_new', 'vacant']]
+        print(f"  Loaded {len(vacant_scn):,} scenario records")
+    else:
+        print(f"Warning: Vacancy scenario not found at {vacant_path}")
+        print("  Skipping. Run scripts/model_vacant_scenario.R to generate.")
+
     # Normalize PIN columns to string
     assessor['pin_10'] = assessor['pin_10'].astype(str)
     addresses['pin_10'] = addresses['pin_10'].astype(str)
@@ -234,7 +250,16 @@ def join_parcel_data(region):
         matched_tax = joined['total_tax_2023'].notnull().sum()
         tax_match_rate = matched_tax / len(joined) * 100
         print(f"  Tax match rate: {tax_match_rate:.1f}% ({matched_tax:,}/{len(joined):,})")
-    
+
+    # Join the vacancy-tax scenario (current + modeled bill per pin_10). Mirrors
+    # the tax-bill join: keyed on the surviving pin_10 after aggregation.
+    if vacant_scn is not None:
+        print("\nJoining vacancy-tax scenario...")
+        joined = joined.merge(vacant_scn, on='pin_10', how='left')
+        matched_v = joined['vacant_tax_new'].notnull().sum()
+        print(f"  Scenario match rate: {matched_v/len(joined)*100:.1f}% "
+              f"({matched_v:,}/{len(joined):,})")
+
     print(f"\nFinal dataset: {len(joined):,} parcels")
     print("\nValue per acre statistics:")
     print(joined['value_per_acre'].describe())
@@ -245,9 +270,15 @@ def join_parcel_data(region):
                      'total_tax_2023', 'tax_per_acre', 'effective_tax_rate',
                      'acres', 'class', 'full_address', 'geometry']
     else:
-        keep_cols = ['pin_10', 'pin_14', 'value_per_acre', 'market_value', 
+        keep_cols = ['pin_10', 'pin_14', 'value_per_acre', 'market_value',
                      'acres', 'class', 'full_address', 'geometry']
-    
+
+    # Bake the vacancy-scenario fields when present. The `vacant` flag is the 2024
+    # PTAXSIM class status used to pick the map's warm/cool color scheme.
+    if vacant_scn is not None:
+        for col in ['vacant_tax_cur', 'vacant_tax_new', 'vacant']:
+            keep_cols.insert(-1, col)  # before geometry
+
     joined = joined[keep_cols]
     
     # Reproject to WGS84 for web mapping

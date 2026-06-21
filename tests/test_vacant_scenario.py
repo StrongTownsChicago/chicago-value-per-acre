@@ -1,13 +1,15 @@
-"""Correctness gate for the PTAXSIM vacancy-tax model output.
+"""Correctness gate for the PTAXSIM vacancy-tax model output (tax year 2024).
 
-Validates ``data/processed/vacant_scenario_2023.csv`` (produced by
-``scripts/model_vacant_scenario.R``) against:
+Validates ``data/processed/vacant_scenario_2024.csv`` (produced by
+``scripts/model_vacant_scenario.R`` against the 2024 PTAXSIM database) for:
   - structural invariants (no nulls, valid flags, non-negative bills, 10-digit PINs)
-  - Stephen Hoskins' published one-pager figures (Progress and Poverty Institute)
-  - the per-parcel distribution visible on his Felt map's two-scheme legend
+  - the policy mechanics (revenue-neutral, vacant bills ~2.4x, no developed parcel
+    harmed) and a per-parcel distribution matching Stephen Hoskins' two-scheme map
 
-The dollar/relief targets carry tolerances: this is an independent reproduction,
-so it tracks the published numbers without claiming to match them to the dollar.
+The model follows the Progress and Poverty Institute methodology but on 2024 data,
+so the dollars differ from Hoskins' published 2023 one-pager (Chicago was
+reassessed for the 2024 triennial). Bands are set around the 2024 results to catch
+regressions, not to match the 2023 publication.
 
 Run: .venv/Scripts/python -m pytest tests/test_vacant_scenario.py -v
 """
@@ -18,7 +20,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-CSV = os.path.join("data", "processed", "vacant_scenario_2023.csv")
+CSV = os.path.join("data", "processed", "vacant_scenario_2024.csv")
 
 pytestmark = pytest.mark.skipif(
     not os.path.exists(CSV),
@@ -66,20 +68,19 @@ def test_flags_and_bills_well_formed(df):
     assert (df["tax_vacant25"] >= 0).all()
 
 
-# ---- aggregate gate vs the one-pager ----
+# ---- policy mechanics (2024) ----
 
 def test_vacant_parcel_count(vacant):
-    # one-pager: 63,200 (1-00 + 1-90); pin_10 aggregation gives ~63,084
-    assert 62_000 <= len(vacant) <= 64_000
+    # 2024: classes 1-00 + 1-90 aggregate to ~61,600 pin_10 (2023 ref: ~63,200)
+    assert 60_000 <= len(vacant) <= 63_000
 
 
-def test_vacant_current_tax_near_114M(vacant):
-    assert 108e6 <= vacant["tax_current"].sum() <= 122e6  # target ~$114M
+def test_vacant_current_tax(vacant):
+    assert 130e6 <= vacant["tax_current"].sum() <= 150e6  # 2024 ~$139M
 
 
-def test_vacant_new_tax_near_269M(vacant):
-    # target ~$269M; this reproduction lands ~$282M, so allow a band around it
-    assert 250e6 <= vacant["tax_vacant25"].sum() <= 300e6
+def test_vacant_new_tax(vacant):
+    assert 310e6 <= vacant["tax_vacant25"].sum() <= 360e6  # 2024 ~$336M
 
 
 def test_vacant_bill_roughly_doubles(vacant):
@@ -88,16 +89,15 @@ def test_vacant_bill_roughly_doubles(vacant):
 
 
 def test_average_vacant_bill(vacant):
-    assert 1_600 <= vacant["tax_current"].mean() <= 2_000  # ~$1,800
-    assert 4_000 <= vacant["tax_vacant25"].mean() <= 4_800  # ~$4,300
+    assert 2_000 <= vacant["tax_current"].mean() <= 2_600  # 2024 ~$2,258
+    assert 5_000 <= vacant["tax_vacant25"].mean() <= 6_000  # 2024 ~$5,449
 
 
 def test_developed_relief_in_band(developed):
     total_cur = developed["tax_current"].sum()
     total_new = developed["tax_vacant25"].sum()
     relief_pct = 100 * (total_new - total_cur) / total_cur
-    # one-pager ~-0.85%; both modeling variants fall in this band
-    assert -1.5 <= relief_pct <= -0.3
+    assert -2.0 <= relief_pct <= -0.5  # 2024 ~-1.2%
 
 
 def test_revenue_roughly_neutral(df):
@@ -109,25 +109,26 @@ def test_revenue_roughly_neutral(df):
 def test_vacant_share_of_base(df, vacant):
     cur_share = 100 * vacant["tax_current"].sum() / df["tax_current"].sum()
     new_share = 100 * vacant["tax_vacant25"].sum() / df["tax_vacant25"].sum()
-    assert 0.4 <= cur_share <= 0.8  # ~0.6%
-    assert 1.2 <= new_share <= 1.8  # ~1.5%
+    assert 0.5 <= cur_share <= 0.9  # 2024 ~0.7%
+    assert 1.5 <= new_share <= 2.1  # 2024 ~1.8%
 
 
-# ---- per-parcel distribution vs the Felt map legend ----
+# ---- per-parcel distribution vs the Felt map two-scheme legend ----
 
 def test_vacant_median_increase(vacant):
-    # Felt map vacant bins top out near +150%; recorded target ~+143%
+    # vacant lots roughly double; tightly clustered near +146%
     assert 130 <= vacant["pct"].median() <= 160
 
 
-def test_developed_distribution_matches_legend(developed):
-    pct = developed["pct"].dropna()
-    # almost everyone pays less, by a small amount (his -0.15% to -5% bands)
-    assert (pct < 0).mean() > 0.95
+def test_developed_distribution(developed):
+    pct = developed["pct"].dropna()  # parcels with a real prior bill
+    assert (pct < 0).mean() > 0.95  # nearly all taxpaying developed parcels pay less
     assert -6 <= np.percentile(pct, 5) <= -1
-    assert -1.0 <= np.percentile(pct, 95) <= 0
+    assert -2 <= np.percentile(pct, 95) <= 0
 
 
-def test_directionality(vacant, developed):
+def test_no_developed_parcel_pays_more(vacant, developed):
+    # The policy must not raise any non-vacant bill (relief or flat only).
+    assert (developed["tax_vacant25"] <= developed["tax_current"] + 1).all()
+    # And vacant parcels all pay more.
     assert (vacant["tax_vacant25"] >= vacant["tax_current"]).mean() > 0.98
-    assert (developed["tax_vacant25"] <= developed["tax_current"]).mean() > 0.95

@@ -18,20 +18,27 @@
 # Output: data/processed/vacant_scenario_2023.csv
 #   pin_10, tax_current, tax_vacant25, vacant
 
+# PTAXSIM 1.1.0 (required for the 2024 database) is installed in a user library
+# because the system site-library is read-only here. Harmless elsewhere.
+local({
+  ul <- path.expand("~/Rlibs")
+  if (dir.exists(ul)) .libPaths(c(ul, .libPaths()))
+})
 suppressMessages({
   library(ptaxsim)
   library(data.table)
 })
 
-YEAR <- 2023
+YEAR <- 2024
 VACANT_CLASSES <- c("100", "190")
 UPLIFT <- 2.5 # 25% / 10%
-OUT <- "data/processed/vacant_scenario_2023.csv"
+DB <- "./data/raw/tax_data/ptaxsim-2024.0.0.db"
+OUT <- "data/processed/vacant_scenario_2024.csv"
 
 t0 <- Sys.time()
 say <- function(...) cat(sprintf("[%s] ", format(Sys.time(), "%H:%M:%S")), ..., "\n")
 
-ptaxsim_db_conn <- DBI::dbConnect(RSQLite::SQLite(), "./data/raw/tax_data/ptaxsim.db")
+ptaxsim_db_conn <- DBI::dbConnect(RSQLite::SQLite(), DB)
 
 say("Loading all", YEAR, "PINs (class + tax code)...")
 pins_tbl <- as.data.table(DBI::dbGetQuery(
@@ -139,30 +146,31 @@ out[, ratio := fifelse(comp_cur > 0, comp_new / comp_cur, 1)]
 out[, tax_current := real_cur]
 out[, tax_vacant25 := real_cur * ratio]
 
-# ---- validation against Hoskins' published targets ----
-say("================ VALIDATION ================")
+# ---- validation: 2024 actuals, with Hoskins' 2023 published figures for
+# reference only (2024 differs: Chicago was reassessed for the 2024 triennial). ----
+say("============ VALIDATION (tax year", YEAR, ") ============")
 vac <- out[vacant == 1]
 non <- out[vacant == 0]
 fmtm <- function(x) sprintf("$%.1fM", x / 1e6)
-say("Vacant parcels (pin_10):", nrow(vac))
-say("  tax current:", fmtm(sum(vac$tax_current)), " (target ~$114M)")
-say("  tax new:    ", fmtm(sum(vac$tax_vacant25)), " (target ~$269M)")
-say("  increase:   ", fmtm(sum(vac$tax_vacant25) - sum(vac$tax_current)), " (target ~+$156M)")
-say("  avg current:", sprintf("$%.0f", mean(vac$tax_current)), " (target ~$1,800)")
-say("  avg new:    ", sprintf("$%.0f", mean(vac$tax_vacant25)), " (target ~$4,300)")
+say("Vacant parcels (pin_10):", nrow(vac), " (2023 ref: 63,200)")
+say("  tax current:", fmtm(sum(vac$tax_current)), " (2023 ref: $114M)")
+say("  tax new:    ", fmtm(sum(vac$tax_vacant25)), " (2023 ref: $269M)")
+say("  increase:   ", fmtm(sum(vac$tax_vacant25) - sum(vac$tax_current)), " (2023 ref: +$156M)")
+say("  avg current:", sprintf("$%.0f", mean(vac$tax_current)), " (2023 ref: $1,800)")
+say("  avg new:    ", sprintf("$%.0f", mean(vac$tax_vacant25)), " (2023 ref: $4,300)")
 say("Non-vacant parcels:", nrow(non))
 say("  total current:", fmtm(sum(non$tax_current)))
 say("  total new:    ", fmtm(sum(non$tax_vacant25)))
 say("  avg change:   ",
     sprintf("%.2f%%", 100 * (sum(non$tax_vacant25) - sum(non$tax_current)) / sum(non$tax_current)),
-    " (target ~-0.85%)")
+    " (2023 ref: -0.85%)")
 tot_cur <- sum(out$tax_current); tot_new <- sum(out$tax_vacant25)
 say("Revenue neutrality: total current", fmtm(tot_cur), "-> total new", fmtm(tot_new),
     sprintf("(%.3f%%)", 100 * (tot_new - tot_cur) / tot_cur))
 say("Vacant share of tax base: current",
     sprintf("%.1f%%", 100 * sum(vac$tax_current) / tot_cur),
     "-> new", sprintf("%.1f%%", 100 * sum(vac$tax_vacant25) / tot_new),
-    "(target 0.6% -> 1.5%)")
+    "(2023 ref: 0.6% -> 1.5%)")
 
 say("Writing", OUT)
 fwrite(out[, .(pin_10, tax_current = round(tax_current), tax_vacant25 = round(tax_vacant25), vacant)], OUT)
