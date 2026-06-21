@@ -5,11 +5,11 @@ let extent = "chicago";
 let vacantOnly = false;
 
 function getCurrentTileUrl() {
-  // Default to HQ Chicago so every parcel's tax-change color is exact (the
-  // standard tiles coalesce features at low zoom). County uses standard quality.
+  // Use HQ tiles for both extents so every parcel's tax-change color is exact
+  // (the standard tiles coalesce features at low zoom, approximating colors).
   return extent === "chicago"
     ? MapCore.tileUrl("chicago_parcels_hq.pmtiles")
-    : MapCore.tileUrl("cook_county_parcels.pmtiles");
+    : MapCore.tileUrl("cook_county_parcels_hq.pmtiles");
 }
 
 function updateLegend() {
@@ -84,14 +84,14 @@ const api = MapCore.init({
   },
 });
 
-// Extent toggle (Chicago HQ vs Cook County)
+// Extent toggle (Chicago vs Cook County, both HQ)
 document.getElementById("toggle-extent").addEventListener("click", () => {
   extent = extent === "chicago" ? "county" : "chicago";
   api.reloadParcels();
   document.getElementById("toggle-extent").textContent =
     extent === "chicago" ? "Show All Cook County" : "Show Chicago Only";
   document.getElementById("extent-note").textContent =
-    extent === "county" ? "Cook County (standard quality)." : "";
+    extent === "county" ? "All Cook County parcels — may be slow to load." : "";
 });
 
 // Vacant-only toggle: filter the map (and legend) down to just the vacant lots.

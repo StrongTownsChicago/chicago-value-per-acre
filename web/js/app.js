@@ -10,15 +10,11 @@ const TILES = {
   chicago: MapCore.tileUrl("chicago_parcels.pmtiles"),
   chicagoHQ: MapCore.tileUrl("chicago_parcels_hq.pmtiles"),
   county: MapCore.tileUrl("cook_county_parcels.pmtiles"),
-  countyHQ: MapCore.tileUrl("cook_county_parcels.pmtiles"),
+  countyHQ: MapCore.tileUrl("cook_county_parcels_hq.pmtiles"),
 };
 
 function getCurrentTileUrl() {
   const base = currentExtent === "chicago" ? "chicago" : "county";
-  // Force standard quality for county
-  if (currentExtent === "county") {
-    return TILES.county;
-  }
   return TILES[isHighQuality ? base + "HQ" : base];
 }
 
@@ -26,29 +22,18 @@ function updateQualityButtonState() {
   const btn = document.getElementById("toggle-quality");
   const note = document.getElementById("quality-note");
 
-  if (currentExtent === "county") {
-    // Disable for Cook County
-    btn.disabled = true;
-    btn.textContent = "High Quality (Chicago Only)";
-    note.textContent =
-      "High quality mode is only available for Chicago due to file size.";
-    btn.style.opacity = "0.5";
-    btn.style.cursor = "not-allowed";
-  } else {
-    // Enable for Chicago
-    btn.disabled = false;
-    btn.style.opacity = "1";
-    btn.style.cursor = "pointer";
+  btn.disabled = false;
+  btn.style.opacity = "1";
+  btn.style.cursor = "pointer";
 
-    if (isHighQuality) {
-      btn.textContent = "Standard Quality (Faster)";
-      note.textContent =
-        "Showing all parcels at all zoom levels. This may not work on some devices.";
-    } else {
-      btn.textContent = "Show All Parcels (Slower)";
-      note.textContent =
-        "Standard quality hides some parcels at low zoom levels for better performance.";
-    }
+  if (isHighQuality) {
+    btn.textContent = "Standard Quality (Faster)";
+    note.textContent =
+      "Showing all parcels at all zoom levels. This may not work on some devices.";
+  } else {
+    btn.textContent = "Show All Parcels (Slower)";
+    note.textContent =
+      "Standard quality hides some parcels at low zoom levels for better performance.";
   }
 }
 
@@ -147,11 +132,6 @@ document.getElementById("toggle-metric").addEventListener("click", () => {
 document.getElementById("toggle-extent").addEventListener("click", () => {
   currentExtent = currentExtent === "chicago" ? "county" : "chicago";
 
-  // Force back to standard quality when switching to county
-  if (currentExtent === "county" && isHighQuality) {
-    isHighQuality = false;
-  }
-
   api.reloadParcels();
   updateQualityButtonState();
 
@@ -159,13 +139,8 @@ document.getElementById("toggle-extent").addEventListener("click", () => {
     currentExtent === "chicago" ? "Show All Cook County" : "Show Chicago Only";
 });
 
-// Toggle quality (Standard vs High Quality)
+// Toggle quality (Standard vs High Quality) — available for both extents.
 document.getElementById("toggle-quality").addEventListener("click", () => {
-  // Only allow toggle for Chicago
-  if (currentExtent === "county") {
-    return;
-  }
-
   isHighQuality = !isHighQuality;
   api.reloadParcels();
   updateQualityButtonState();
