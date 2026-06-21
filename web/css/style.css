@@ -93,6 +93,13 @@ p {
   background: #cf6d1d;
 }
 
+#toggle-vacant-only {
+  background: #34495e;
+}
+#toggle-vacant-only:hover {
+  background: #2c3e50;
+}
+
 #toggle-quality {
   background: #d84315;
 }

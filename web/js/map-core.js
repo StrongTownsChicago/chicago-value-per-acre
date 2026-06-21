@@ -11,6 +11,7 @@
 //   getTileUrl()           -> pmtiles url for the current view
 //   getColorExpression()   -> MapLibre color expression for the current view
 //   getHeightExpression()  -> MapLibre fill-extrusion-height expression
+//   getFilter()            -> MapLibre filter expression, or null for no filter (optional)
 //   buildPopupHtml(props)  -> html string (or falsy to skip the popup)
 //   onLoad(api)            -> page-specific wiring after the map loads
 // }
@@ -60,33 +61,48 @@ const MapCore = (function () {
     });
   }
 
+  // Current page-supplied parcel filter, or null when no filter is configured.
+  function currentFilter() {
+    return state.cfg.getFilter ? state.cfg.getFilter() : null;
+  }
+
+  // Attach the active filter to a layer spec when one is set (omitting `filter`
+  // entirely means "show all", which MapLibre requires over a null value).
+  function withFilter(layer) {
+    const f = currentFilter();
+    if (f) layer.filter = f;
+    return layer;
+  }
+
   function addOutlineLayer() {
-    state.map.addLayer({
-      id: "parcels-outline",
-      type: "line",
-      source: "parcels",
-      "source-layer": "parcels",
-      paint: {
-        "line-color": "#333",
-        "line-width": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          12,
-          0,
-          14,
-          0.5,
-          16,
-          1,
-        ],
-        "line-opacity": 0.3,
-      },
-    });
+    state.map.addLayer(
+      withFilter({
+        id: "parcels-outline",
+        type: "line",
+        source: "parcels",
+        "source-layer": "parcels",
+        paint: {
+          "line-color": "#333",
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            12,
+            0,
+            14,
+            0.5,
+            16,
+            1,
+          ],
+          "line-opacity": 0.3,
+        },
+      })
+    );
   }
 
   function addFillLayer(beforeId) {
     state.map.addLayer(
-      {
+      withFilter({
         id: "parcels-fill",
         type: "fill",
         source: "parcels",
@@ -95,14 +111,14 @@ const MapCore = (function () {
           "fill-color": state.cfg.getColorExpression(),
           "fill-opacity": 0.7,
         },
-      },
+      }),
       beforeId
     );
   }
 
   function add3DLayer(beforeId) {
     state.map.addLayer(
-      {
+      withFilter({
         id: "parcels-3d",
         type: "fill-extrusion",
         source: "parcels",
@@ -112,7 +128,7 @@ const MapCore = (function () {
           "fill-extrusion-height": state.cfg.getHeightExpression(),
           "fill-extrusion-opacity": 0.8,
         },
-      },
+      }),
       beforeId
     );
   }
@@ -137,6 +153,16 @@ const MapCore = (function () {
       addFillLayer();
     }
     addOutlineLayer();
+  }
+
+  // Re-apply the page's current filter to every parcel layer without rebuilding
+  // the source. Passing null clears the filter (shows all parcels).
+  function refreshFilter() {
+    const m = state.map;
+    const f = currentFilter();
+    for (const id of ["parcels-fill", "parcels-3d", "parcels-outline"]) {
+      if (m.getLayer(id)) m.setFilter(id, f);
+    }
   }
 
   // Re-apply the current color (and height, in 3D) without rebuilding the source.
@@ -285,6 +311,7 @@ const MapCore = (function () {
       map,
       reloadParcels,
       refreshPaint,
+      refreshFilter,
       toggle3D,
       get is3D() {
         return state.is3D;

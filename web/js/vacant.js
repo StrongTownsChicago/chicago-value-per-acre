@@ -2,6 +2,9 @@
 // two-scheme color/legend logic lives in scales.js.
 
 let extent = "chicago";
+// Default view shows only vacant lots — that's the story of the page. Users can
+// toggle developed parcels back on to see the (small) relief they'd receive.
+let vacantOnly = true;
 
 function getCurrentTileUrl() {
   // Default to HQ Chicago so every parcel's tax-change color is exact (the
@@ -12,7 +15,7 @@ function getCurrentTileUrl() {
 }
 
 function updateLegend() {
-  document.querySelector("#legend").innerHTML = vacantLegendHtml();
+  document.querySelector("#legend").innerHTML = vacantLegendHtml(vacantOnly);
 }
 
 function signedDollar(n) {
@@ -68,6 +71,7 @@ const api = MapCore.init({
   getTileUrl: getCurrentTileUrl,
   getColorExpression: () => vacantColorExpression(),
   getHeightExpression: () => vacantHeightExpression(),
+  getFilter: () => (vacantOnly ? vacantOnlyFilter() : null),
   buildPopupHtml: buildVacantPopupHtml,
   onLoad: () => {
     updateLegend();
@@ -90,4 +94,14 @@ document.getElementById("toggle-extent").addEventListener("click", () => {
     extent === "chicago" ? "Show All Cook County" : "Show Chicago Only";
   document.getElementById("extent-note").textContent =
     extent === "county" ? "Cook County (standard quality)." : "";
+});
+
+// Vacant-only toggle: filter the map (and legend) down to just the vacant lots.
+document.getElementById("toggle-vacant-only").addEventListener("click", (e) => {
+  vacantOnly = !vacantOnly;
+  api.refreshFilter();
+  updateLegend();
+  e.currentTarget.textContent = vacantOnly
+    ? "Show All Parcels"
+    : "Show Only Vacant Lots";
 });

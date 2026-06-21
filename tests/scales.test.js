@@ -17,6 +17,7 @@ const {
   vacantChangeExpr,
   vacantColorExpression,
   vacantHeightExpression,
+  vacantOnlyFilter,
   vacantLegendHtml,
   vacantStatsHtml,
 } = require("../web/js/scales.js");
@@ -171,6 +172,22 @@ test("vacantLegendHtml: dollar title, both blocks, and a neutral entry", () => {
   assert.match(html, /Developed parcels \(pay less\)/);
   assert.match(html, /\+\$100,000 or more/);
   assert.match(html, /No change \/ untaxed/);
+});
+
+test("vacantLegendHtml: vacant-only mode drops the developed block", () => {
+  const html = vacantLegendHtml(true);
+  assert.match(html, /Vacant lots \(pay more\)/);
+  assert.match(html, /No change \/ untaxed/);
+  // Developed parcels are filtered off the map, so their legend block is hidden.
+  assert.doesNotMatch(html, /Developed parcels \(pay less\)/);
+});
+
+test("vacantOnlyFilter: keeps only baked-vacant parcels, matching the warm color branch", () => {
+  const filter = vacantOnlyFilter();
+  assert.deepEqual(filter, ["==", ["get", "vacant"], 1]);
+  // Must be identical to the vacant branch test in vacantColorExpression, so the
+  // filtered set and the warm-colored set never drift apart.
+  assert.deepEqual(filter, vacantColorExpression()[5]);
 });
 
 test("vacantStatsHtml: headline figures, no per-category bars", () => {

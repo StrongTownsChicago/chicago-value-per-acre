@@ -395,6 +395,14 @@ function vacantColorExpression() {
   ];
 }
 
+// Filter expression for the "vacant lots only" toggle: keep only parcels whose
+// baked `vacant` flag is 1 (the PTAXSIM scenario's vacancy status, matching the
+// warm branch of vacantColorExpression). The page passes null instead to show
+// every parcel.
+function vacantOnlyFilter() {
+  return ["==", ["get", "vacant"], 1];
+}
+
 // 3D height = magnitude of the dollar change (direction is shown by color). Stops
 // are hand-tuned so the residential relief range stays visible while vacant lots
 // spike, instead of a few big commercial swings flattening everything.
@@ -428,7 +436,9 @@ function vacantHeightExpression() {
 }
 
 // Legend HTML: a neutral row, a "Vacant lots" block, and a "Developed" block.
-function vacantLegendHtml() {
+// In vacant-only mode the developed block is dropped, since those parcels are
+// filtered off the map.
+function vacantLegendHtml(vacantOnly) {
   const block = (heading, items) =>
     `<div class="legend-block"><h4>${heading}</h4>` +
     items
@@ -441,7 +451,9 @@ function vacantLegendHtml() {
   return (
     `<h3>${VACANT_SCHEME.title}</h3>` +
     block("Vacant lots (pay more)", VACANT_SCHEME.vacant.legend) +
-    block("Developed parcels (pay less)", VACANT_SCHEME.developed.legend) +
+    (vacantOnly
+      ? ""
+      : block("Developed parcels (pay less)", VACANT_SCHEME.developed.legend)) +
     block("", [["No change / untaxed", VACANT_NO_CHANGE_COLOR]])
   );
 }
@@ -485,6 +497,7 @@ if (typeof module !== "undefined" && module.exports) {
     vacantChangeExpr,
     vacantColorExpression,
     vacantHeightExpression,
+    vacantOnlyFilter,
     vacantLegendHtml,
     vacantStatsHtml,
   };
