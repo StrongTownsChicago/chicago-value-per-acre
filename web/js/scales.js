@@ -304,3 +304,16 @@ function getClassDescription(classCode) {
   const code = String(classCode);
   return CLASS_DESCRIPTIONS[code] || `Class ${code}`;
 }
+
+// Expose the pure helpers to Node for unit testing. Ignored in the browser
+// (module is undefined there), so the <script> behavior is unchanged.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    SCALES,
+    CLASS_DESCRIPTIONS,
+    buildColorExpression,
+    buildHeightExpression,
+    buildLegendHtml,
+    getClassDescription,
+  };
+}
