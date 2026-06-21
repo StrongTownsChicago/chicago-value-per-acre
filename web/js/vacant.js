@@ -2,9 +2,7 @@
 // two-scheme color/legend logic lives in scales.js.
 
 let extent = "chicago";
-// Default view shows only vacant lots — that's the story of the page. Users can
-// toggle developed parcels back on to see the (small) relief they'd receive.
-let vacantOnly = true;
+let vacantOnly = false;
 
 function getCurrentTileUrl() {
   // Default to HQ Chicago so every parcel's tax-change color is exact (the
