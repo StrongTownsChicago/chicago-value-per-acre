@@ -429,6 +429,44 @@ function vacantLegendHtml(view) {
   );
 }
 
+// "Who pays what" stats panel HTML, built from the county-wide aggregates in
+// web/vacant_aggregates.json. Pure (string in, string out) so it unit-tests.
+function vacantStatsHtml(cc) {
+  if (!cc || !cc.n_vacant) return "";
+  const n = (x) => Math.round(x).toLocaleString("en-US");
+  const millions = (x) => "$" + Math.round(x / 1e6).toLocaleString("en-US") + "M";
+  const dollars = (x) => "$" + Math.round(x).toLocaleString("en-US");
+
+  const avgCur = cc.sum_vacant_current / cc.n_vacant;
+  const avgNew = cc.sum_vacant_new / cc.n_vacant;
+  const nNon = cc.n_total - cc.n_vacant;
+
+  const headline =
+    `<p>Raising vacant land's assessment to 25% would make the ` +
+    `<strong>${n(cc.n_vacant)}</strong> vacant lots pay <strong>${millions(cc.vacant_increase)}</strong> ` +
+    `more — the average vacant bill rising from <strong>${dollars(avgCur)}</strong> to ` +
+    `<strong>${dollars(avgNew)}</strong>. The change is revenue-neutral, so the other ` +
+    `${n(nNon)} parcels each pay about <strong>${Math.abs(cc.avg_nonvacant_change_pct).toFixed(1)}%</strong> less.</p>`;
+
+  const cats = Object.entries(cc.by_category).sort(
+    (a, b) => b[1].avg_change_pct - a[1].avg_change_pct
+  );
+  const maxAbs = Math.max(...cats.map(([, v]) => Math.abs(v.avg_change_pct))) || 1;
+  const rows = cats
+    .map(([name, v]) => {
+      const w = Math.max(2, (Math.abs(v.avg_change_pct) / maxAbs) * 100);
+      const pos = v.avg_change_pct >= 0;
+      return (
+        `<div class="stat-row"><span class="stat-name">${name}</span>` +
+        `<span class="stat-bar"><span class="stat-fill ${pos ? "pos" : "neg"}" style="width:${w}%"></span></span>` +
+        `<span class="stat-val">${pos ? "+" : ""}${v.avg_change_pct.toFixed(1)}%</span></div>`
+      );
+    })
+    .join("");
+
+  return `<h3>Who pays what</h3>${headline}${rows}`;
+}
+
 // Expose the pure helpers to Node for unit testing. Ignored in the browser
 // (module is undefined there), so the <script> behavior is unchanged.
 if (typeof module !== "undefined" && module.exports) {
@@ -444,5 +482,6 @@ if (typeof module !== "undefined" && module.exports) {
     vacantColorExpression,
     vacantHeightExpression,
     vacantLegendHtml,
+    vacantStatsHtml,
   };
 }

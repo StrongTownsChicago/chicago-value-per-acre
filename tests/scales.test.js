@@ -17,7 +17,23 @@ const {
   vacantColorExpression,
   vacantHeightExpression,
   vacantLegendHtml,
+  vacantStatsHtml,
 } = require("../web/js/scales.js");
+
+const SAMPLE_AGG = {
+  n_total: 1_416_810,
+  n_vacant: 61_623,
+  sum_current: 19_192_000_000,
+  sum_vacant_current: 139_100_000,
+  sum_vacant_new: 335_800_000,
+  vacant_increase: 196_700_000,
+  avg_nonvacant_change_pct: -1.21,
+  by_category: {
+    "Vacant land": { n: 61_623, avg_change_pct: 141.3 },
+    "Single-family / townhome": { n: 738_147, avg_change_pct: -1.2 },
+    "Commercial / retail": { n: 70_964, avg_change_pct: -1.4 },
+  },
+};
 
 // Thresholds in a MapLibre ["step", input, base, t1, c1, t2, c2, ...] expression.
 function stepThresholds(stepExpr) {
@@ -162,6 +178,27 @@ test("vacantLegendHtml: titled with both vacant and developed blocks", () => {
   assert.match(html, /Developed parcels \(pay less\)/);
   assert.match(html, /\+150% or more/);
   assert.match(html, /≈ no change/);
+});
+
+test("vacantStatsHtml: headline figures and per-category rows", () => {
+  const html = vacantStatsHtml(SAMPLE_AGG);
+  assert.match(html, /Who pays what/);
+  assert.match(html, /61,623/); // vacant count
+  assert.match(html, /\$197M/); // vacant increase rounded to millions
+  assert.match(html, /\$2,257/); // avg vacant current = 139.1M / 61,623
+  assert.match(html, /\$5,449/); // avg vacant new = 335.8M / 61,623
+  assert.match(html, /1\.2%/); // non-vacant relief (abs)
+  // category rows, sorted with the vacant increase first
+  assert.match(html, /Vacant land/);
+  assert.match(html, /\+141\.3%/);
+  assert.match(html, /Commercial \/ retail/);
+  assert.ok(html.indexOf("Vacant land") < html.indexOf("Single-family"));
+});
+
+test("vacantStatsHtml: empty for missing/zero aggregates", () => {
+  assert.equal(vacantStatsHtml(null), "");
+  assert.equal(vacantStatsHtml({}), "");
+  assert.equal(vacantStatsHtml({ n_vacant: 0 }), "");
 });
 
 test("VACANT_VIEWS integrity: ascending step thresholds, hex colors, legends", () => {

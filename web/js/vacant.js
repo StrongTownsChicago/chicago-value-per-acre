@@ -57,32 +57,9 @@ function loadStats() {
   fetch("vacant_aggregates.json")
     .then((r) => r.json())
     .then((data) => {
-      const cc = data.cook_county;
-      if (!cc) return;
-      const m = (x) => "$" + Math.round(x / 1e6).toLocaleString("en-US") + "M";
-      const headline = `<p>Raising vacant land to 25% makes
-        <strong>${cc.n_vacant.toLocaleString("en-US")}</strong> vacant parcels pay
-        <strong>${m(cc.vacant_increase)}</strong> more, so the other
-        ${(cc.n_total - cc.n_vacant).toLocaleString("en-US")} parcels pay about
-        <strong>${cc.avg_nonvacant_change_pct.toFixed(2)}%</strong> less.</p>`;
-
-      const cats = Object.entries(cc.by_category).sort(
-        (a, b) => b[1].avg_change_pct - a[1].avg_change_pct
+      document.querySelector("#vacant-stats").innerHTML = vacantStatsHtml(
+        data.cook_county
       );
-      const maxAbs = Math.max(...cats.map(([, v]) => Math.abs(v.avg_change_pct))) || 1;
-      const rows = cats
-        .map(([name, v]) => {
-          const w = Math.max(2, (Math.abs(v.avg_change_pct) / maxAbs) * 100);
-          const pos = v.avg_change_pct >= 0;
-          return `<div class="stat-row">
-            <span class="stat-name">${name}</span>
-            <span class="stat-bar"><span class="stat-fill ${pos ? "pos" : "neg"}" style="width:${w}%"></span></span>
-            <span class="stat-val">${pos ? "+" : ""}${v.avg_change_pct.toFixed(1)}%</span>
-          </div>`;
-        })
-        .join("");
-      document.querySelector("#vacant-stats").innerHTML =
-        `<h3>Who pays what</h3>${headline}${rows}`;
     })
     .catch(() => {});
 }
