@@ -202,6 +202,22 @@ const MapCore = (function () {
     return state.is3D;
   }
 
+  // Open the parcel popup at a geographic point (used by address search). Reuses
+  // the same layer-by-3D-state and buildPopupHtml logic as a map click. Returns
+  // true if a popup was shown; a miss (no rendered parcel there) returns false.
+  function openPopupAt(lngLat) {
+    const m = state.map;
+    const layerId = state.is3D ? "parcels-3d" : "parcels-fill";
+    const features = m.queryRenderedFeatures(m.project(lngLat), {
+      layers: [layerId],
+    });
+    if (features.length === 0) return false;
+    const html = state.cfg.buildPopupHtml(features[0].properties);
+    if (!html) return false;
+    new maplibregl.Popup().setLngLat(lngLat).setHTML(html).addTo(m);
+    return true;
+  }
+
   function setupInteractions() {
     const m = state.map;
 
@@ -313,6 +329,7 @@ const MapCore = (function () {
       refreshPaint,
       refreshFilter,
       toggle3D,
+      openPopupAt,
       get is3D() {
         return state.is3D;
       },

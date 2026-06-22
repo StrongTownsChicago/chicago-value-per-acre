@@ -59,6 +59,20 @@
         >.
       </p>
 
+      <form id="address-form" class="address-form" autocomplete="off">
+        <input
+          id="address-input"
+          type="text"
+          placeholder="Search an address…"
+          aria-label="Search an address"
+          autocomplete="off"
+        />
+        <button type="submit" class="control-btn" id="address-submit">
+          Go
+        </button>
+      </form>
+      <p id="address-error" class="address-error" hidden></p>
+
       <button class="control-btn" id="toggle-3d">Enable 3D View</button>
       <button class="control-btn" id="toggle-cta">Hide CTA Lines</button>
       <button class="control-btn" id="toggle-extent">Show All Cook County</button>
@@ -121,6 +135,7 @@
 
     <script src="js/scales.js"></script>
     <script src="js/map-core.js"></script>
+    <script src="js/search.js"></script>
     <script src="js/vacant.js"></script>
   </body>
 </html>

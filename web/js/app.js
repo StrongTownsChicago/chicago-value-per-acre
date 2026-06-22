@@ -100,6 +100,7 @@ const api = MapCore.init({
   onLoad: () => {
     updateQualityButtonState();
     updateLegend();
+    MapSearch.setup(api);
 
     // Toggle 3D
     document.getElementById("toggle-3d").addEventListener("click", () => {

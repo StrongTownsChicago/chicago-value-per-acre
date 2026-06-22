@@ -74,6 +74,7 @@ const api = MapCore.init({
   onLoad: () => {
     updateLegend();
     loadStats();
+    MapSearch.setup(api);
 
     document.getElementById("toggle-3d").addEventListener("click", () => {
       const is3D = api.toggle3D();
